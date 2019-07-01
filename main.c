@@ -5,12 +5,22 @@
 #include "MotionHeader.h"
 #include <math.h>
 #include <time.h>
+#include <sys/time.h>
+
+#include "test.h"
+#include "seatest.h"
+
+
+//struct timeval tpStart , tpStop ;
+//    struct timeval tp ;
+//	float f1 = 0 ;
+//	gettimeofday(&tp,0);
 
 int main( void ){
 	//	FILE *MscanFile = fopen("Mscan_withoutMF202.csv", "r");
-	FILE *MscanFile1 = fopen("./Records/Mscan_withoutMF700_1.csv", "r");
-	FILE *MscanFile2 = fopen("./Records/Mscan_withoutMF700_2.csv", "r");
-	FILE *MscanFile3 = fopen("./Records/Mscan_withoutMF700_3.csv", "r");
+	FILE *MscanFile1 = fopen("/home/debian/Records/Mscan_withoutMF700_1.csv", "r");
+	FILE *MscanFile2 = fopen("/home/debian/Records/Mscan_withoutMF700_2.csv", "r");
+	FILE *MscanFile3 = fopen("/home/debian/Records/Mscan_withoutMF700_3.csv", "r");
 
 	SysParams_Struct SysParams;
 
@@ -175,8 +185,18 @@ int main( void ){
 		SysParams.Rbin_m[i]=SysParams.Rstart_corrected+delta_R*i;
 //		printf("%d %lf\n",i,SysParams.Rbin_m[i]);
 	}
-//clock_t begin=clock();12345
+
+
+
+//	gettimeofday(&tpStart,0);
+			// end point
+
 	MotionHandler(Mscan0,Mscan1,&SysParams,All_Trees,&SVM_Model,&RF_Model,&MotionStruct0);
+//	gettimeofday(&tpStop,0);
+//
+//	f1 = ( (float)( tpStop.tv_sec-tpStart.tv_sec)+ (float)(tpStop.tv_usec)/1000000 ) -  ((float)(tpStart.tv_usec)/1000000) ;
+//			printf (" %f sec\n", f1 );
+
 
 //	free(Mscan0);NNED TO FREE
 //	free(Mscan1);
@@ -239,8 +259,8 @@ int RF_Params_Import(int NumOfTrees,int NumOfFeatures, Tree_Struct** All_Trees,R
 	FILE *x_std_File;
 	double Value0;
 	int i;
-	x_mean_File=fopen("./RandomForestClassifier/RF_x_mean.csv", "r");
-	x_std_File=fopen("./RandomForestClassifier/RF_x_std.csv", "r");
+	x_mean_File=fopen("/home/debian/RandomForestClassifier/RF_x_mean.csv", "r");
+	x_std_File=fopen("/home/debian/RandomForestClassifier/RF_x_std.csv", "r");
 
 	for(i=0;i<NumOfFeatures;i++){//import the mean and std for the normalization
 		fscanf(x_mean_File,"%lf",&Value0);
@@ -254,10 +274,12 @@ int RF_Params_Import(int NumOfTrees,int NumOfFeatures, Tree_Struct** All_Trees,R
 }
 
 int TreesCreator(int NumOfTrees, Tree_Struct** All_Trees){
-	char  Filename_Children[40] ;
-	char Filename_CutPoint[40];
-	char Filename_CutPredictor[45];
-	char Filename_ClassProb[40];
+
+	//notice: some variabels are hard coded
+	char  Filename_Children[50] ;
+	char Filename_CutPoint[50];
+	char Filename_CutPredictor[54];
+	char Filename_ClassProb[50];
 	FILE *Children_File;
 	FILE *CutPoint_File;
 	FILE *CutPredictor_File;
@@ -268,7 +290,7 @@ int TreesCreator(int NumOfTrees, Tree_Struct** All_Trees){
 	float Value0,Value1,Value2,Value3;
 	int ValueCutPredictor;
 	int Value0Children,Value1Children;
-	Lengths_File=fopen("./RandomForestClassifier/Lengths.csv", "r");
+	Lengths_File=fopen("/home/debian/RandomForestClassifier/Lengths.csv", "r");
 	All_Trees[0]->TotalTrees=8;
 	for(TreeNum=0;TreeNum<All_Trees[0]->TotalTrees;TreeNum++){
 		fscanf(Lengths_File,"%d",&Current_Length);
@@ -277,14 +299,18 @@ int TreesCreator(int NumOfTrees, Tree_Struct** All_Trees){
 		memset(Filename_CutPredictor , 0 , sizeof(Filename_CutPredictor));
 		memset(Filename_ClassProb , 0 , sizeof(Filename_ClassProb));
 
-		sprintf(Filename_CutPredictor, "./RandomForestClassifier/CutPredictor%d.csv" , TreeNum);
-		sprintf(Filename_CutPoint, "./RandomForestClassifier/CutPoint%d.csv" , TreeNum);
-		sprintf(Filename_Children, "./RandomForestClassifier/Children%d.csv" , TreeNum);
-		sprintf(Filename_ClassProb, "./RandomForestClassifier/ClassProb%d.csv" , TreeNum);
-
-		CutPoint_File=fopen(Filename_CutPoint, "r");
-		Children_File=fopen(Filename_Children, "r");
+		sprintf(Filename_CutPredictor, "/home/debian/RandomForestClassifier/CutPredictor%d.csv" , TreeNum);
 		CutPredictor_File=fopen(Filename_CutPredictor, "r");
+
+
+		sprintf(Filename_CutPoint, "/home/debian/RandomForestClassifier/CutPoint%d.csv" , TreeNum);
+		CutPoint_File=fopen(Filename_CutPoint, "r");
+
+
+		sprintf(Filename_Children, "/home/debian/RandomForestClassifier/Children%d.csv" , TreeNum);
+		Children_File=fopen(Filename_Children, "r");
+
+		sprintf(Filename_ClassProb, "/home/debian/RandomForestClassifier/ClassProb%d.csv" , TreeNum);
 		ClassProb_File=fopen(Filename_ClassProb, "r");
 
 
@@ -328,10 +354,10 @@ int SVM_Params_Import(SVM_Struct* SVM_Model){
 	float Value0;
 	int i,NumOfFeatures=7;
 
-	Bias_File=fopen("./SVMClassifier/SVM_Bias.csv", "r");
-	Beta_File=fopen("./SVMClassifier/SVM_Beta.csv", "r");
-	x_mean_File=fopen("./SVMClassifier/SVM_x_mean.csv", "r");
-	x_std_File=fopen("./SVMClassifier/SVM_x_std.csv", "r");
+	Bias_File=fopen("/home/debian/SVMClassifier/SVM_Bias.csv", "r");
+	Beta_File=fopen("/home/debian/SVMClassifier/SVM_Beta.csv", "r");
+	x_mean_File=fopen("/home/debian/SVMClassifier/SVM_x_mean.csv", "r");
+	x_std_File=fopen("/home/debian/SVMClassifier/SVM_x_std.csv", "r");
 
 	for(i=0;i<NumOfFeatures;i++){
 		fscanf(Beta_File,"%f",&Value0);
