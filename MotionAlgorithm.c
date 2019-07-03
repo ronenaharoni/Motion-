@@ -10,6 +10,20 @@
 #include <gsl/gsl_movstat.h>
 #include "polyfit.h"
 #include <fftw3.h>
+#include <NE10.h>
+#include "seatest.h"
+#include "NE10_dsp.h"
+#include <sys/time.h>
+#ifndef NULL
+#define NULL   ((void *) 0)
+#endif
+
+
+
+struct timeval tpStart , tpStop ;
+struct timeval tp ;
+float f1 = 0 ;
+
 
 ///ADD MSAN 1 AND MSCAN 2 AND AT THE END SAVE MOTION2 AT MOTION0
 int MotionHandler(float* Mscan1[], float* Mscan2[], SysParams_Struct* SysParams,
@@ -68,13 +82,16 @@ int MotionHandler(float* Mscan1[], float* Mscan2[], SysParams_Struct* SysParams,
 				SysParams->SpectrogramTimeBins * sizeof(float));
 	}
 
-	//PreProcessing
-	MacthedFilter2(Mscan1, SysParams);
 
-	//	SlowProcessing2(Mscan1, SysParams); //remove DC
-	//	NotchFilter2(Mscan1, SysParams); //filter the 50&100Hz disturbance that occurred from the fluorescent lamp
+	//PreProcessing
+	//	MacthedFilter2(Mscan1, SysParams);
+	MatchedFilter(Mscan1, SysParams);
+
+
 
 	//Memory Allocation for the curves
+	//	gettimeofday(&tpStart,0);//START
+
 	MemoryAllocation(&Edge2_1, &Edge2_2, &Edge2_Plus_1, &Edge2_Minus_1,
 			&Edge2_Plus_2, &Edge2_Minus_2, SysParams);
 
@@ -94,10 +111,14 @@ int MotionHandler(float* Mscan1[], float* Mscan2[], SysParams_Struct* SysParams,
 				(SysParams->AvgValue - 1) * sizeof(float));
 		//notice that PrevLastFiftyPrecent is actually the last 50precent of MotionStruct0;
 	}
+	//		gettimeofday(&tpStop,0); f1 = ( (float)( tpStop.tv_sec-tpStart.tv_sec)+ (float)(tpStop.tv_usec)/1000000 ) -  ((float)(tpStart.tv_usec)/1000000); printf (" %f sec\n", f1 );
 
 	//Extraction of the curves
 	MotionCurveExtraction2(&MotionStruct1, Mscan1, Mscan_abs_FFT, Pxx2_Hilbert,
 			Pxx2, Pxx2_dB, &Edge2_1, &Edge2_Plus_1, &Edge2_Minus_1, SysParams);
+
+	//	gettimeofday(&tpStop,0); f1 = ( (float)( tpStop.tv_sec-tpStart.tv_sec)+ (float)(tpStop.tv_usec)/1000000 ) -  ((float)(tpStart.tv_usec)/1000000) ;	printf (" %f sec\n", f1 );
+
 
 	//	////////////Send Mscan1 to tracking/////////////////////
 
@@ -134,10 +155,8 @@ int MotionHandler(float* Mscan1[], float* Mscan2[], SysParams_Struct* SysParams,
 	}
 
 	//PreProcessing
-	MacthedFilter2(Mscan2, SysParams);
+	MatchedFilter(Mscan2, SysParams);
 
-	//	SlowProcessing2(Mscan2, SysParams); //remove DC
-	//	NotchFilter2(Mscan2, SysParams); //filter the 50&100Hz disturbance that occurred from the fluorescent lamp
 
 	//save the last AvgValue-1 bins of FiftyPrecent for the initial state of the AvgFilter
 
@@ -147,10 +166,12 @@ int MotionHandler(float* Mscan1[], float* Mscan2[], SysParams_Struct* SysParams,
 		Edge2_Minus_2.PrevLastFiftyPrecent[(SysParams->AvgValue - 1) - i] =
 				Edge2_Minus_1.FiftyPrecent[SysParams->SpectrogramTimeBins - i];
 	}
-	//	}
+	//			gettimeofday(&tpStart,0);//START
+
 	//Extraction of the curves
 	MotionCurveExtraction2(&MotionStruct2, Mscan2, Mscan_abs_FFT, Pxx2_Hilbert,
 			Pxx2, Pxx2_dB, &Edge2_2, &Edge2_Plus_2, &Edge2_Minus_2, SysParams);
+	//	gettimeofday(&tpStop,0); f1 = ( (float)( tpStop.tv_sec-tpStart.tv_sec)+ (float)(tpStop.tv_usec)/1000000 ) -  ((float)(tpStart.tv_usec)/1000000); printf (" %f sec\n", f1 );
 
 	///////Create UnitedMotionStruct for the gap interpolation/////////
 	UnitedMotionStruct.Edge2 = &Edge2_United;
@@ -161,6 +182,7 @@ int MotionHandler(float* Mscan1[], float* Mscan2[], SysParams_Struct* SysParams,
 	UnitedMotionStruct.EventMinusPassEvent = 0;
 
 	//////////////////////Gap Interpolation/////////////////
+
 	GapInterpolation2(MotionStruct0, &MotionStruct1, &MotionStruct2,
 			&UnitedMotionStruct, SysParams);
 
@@ -813,7 +835,7 @@ int SVMClassifier(AllFeatures_Struct* FeatureSet, float * MotionDistribution,
 			(FeatureSet->Minus->yDiff_Raise_Mean_FiftyPrecent_Filtered
 					- SVM_Model->x_mean[3]) / SVM_Model->x_std[3];
 	NormalizedSVMFeatures[4] = (FeatureSet->Both->p1 - SVM_Model->x_mean[4])
-																																											/ SVM_Model->x_std[4];
+																																																																									/ SVM_Model->x_std[4];
 	NormalizedSVMFeatures[5] = (FeatureSet->Both->maxEventLength
 			- SVM_Model->x_mean[5]) / SVM_Model->x_std[5];
 	NormalizedSVMFeatures[6] = (FeatureSet->Both->SumEnergy42
@@ -852,17 +874,17 @@ int RandomForrestClassifier(AllFeatures_Struct* FeatureSet,
 	//The decisions are: 1- Normal Motion, 2-Sitting, 3 - Fall, 4- Quasistatic
 	//Normalize the features: (feature-mean)/std
 	x[0] = (FeatureSet->Plus->Edge2_50Precent_Fmax - RF_Model->x_mean[0])
-																																											/ RF_Model->x_std[0];	//#11
+																																																																									/ RF_Model->x_std[0];	//#11
 	x[1] = (FeatureSet->Minus->Edge2_50Precent_Fmax - RF_Model->x_mean[1])
-																																											/ RF_Model->x_std[1];	//#12
+																																																																									/ RF_Model->x_std[1];	//#12
 	x[2] = (FeatureSet->Plus->Edge2_50Precent_AvgTopFive - RF_Model->x_mean[2])
-																																											/ RF_Model->x_std[2];	//#13
+																																																																									/ RF_Model->x_std[2];	//#13
 	x[3] = (FeatureSet->Minus->Edge2_maxPeakFreq_fromTimeBinWithMaxFreq
 			- RF_Model->x_mean[3]) / RF_Model->x_std[3];	//#18
 	x[4] = (FeatureSet->Both->HilbertRatio - RF_Model->x_mean[4])
-																																											/ RF_Model->x_std[4];	//#21
+																																																																									/ RF_Model->x_std[4];	//#21
 	x[5] = (FeatureSet->Plus->FmaxFpeakMultiplication - RF_Model->x_mean[5])
-																																											/ RF_Model->x_std[5];	//#39
+																																																																									/ RF_Model->x_std[5];	//#39
 
 	for (treeIdx = 0; treeIdx < TotalTrees; treeIdx++) {
 		foundFlag = 0;
@@ -900,7 +922,7 @@ int RandomForrestClassifier(AllFeatures_Struct* FeatureSet,
 
 	for (ProbIdx = 0; ProbIdx < NumOfClasses; ProbIdx++) {//calculate mean of the probabilities over all the trees
 		*(MotionDistribution + ProbIdx) = *(MotionDistribution + ProbIdx)
-																																												/ TotalTrees;
+																																																																										/ TotalTrees;
 	}
 	MaxProbabilty = *(MotionDistribution);
 	for (ProbIdx = 1; ProbIdx < NumOfClasses; ProbIdx++) {//find maximum probabilty and y_hat_M
@@ -922,24 +944,34 @@ int MotionCurveExtraction2(Motion_Struct2* MotionStruct, float* Mscan[],
 		float* Mscan_abs_FFT[], float* Pxx2_Hilbert[], float* Pxx2[],
 		float* Pxx2_dB[], Edge2_Struct* Edge2, Edge2_Struct* Edge2_Plus,
 		Edge2_Struct* Edge2_Minus, SysParams_Struct* SysParams) {
+
 	int p1,i;
 	float T2_dB;
+	//	gettimeofday(&tpStart,0);
+
 	float* Mscan_PostProcess[SysParams->Nscans];
 	for (i=0; i<SysParams->Nscans; i++)
 		Mscan_PostProcess[i] = (float *)malloc(SysParams->Nbins * sizeof(float));
+	//	float Mscan_PostProcess[SysParams->Nscans][SysParams->Nbins];
 
 	SlowProcessing2(Mscan,Mscan_PostProcess, SysParams); //remove DC
+
+
 	NotchFilter2(Mscan_PostProcess, SysParams); //filter the 50&100Hz disturbance that occurred from the fluorescent lamp
 
 	AbsOfFFT2(Mscan_PostProcess, Mscan_abs_FFT, SysParams);
+
 	GET_ROI2(Mscan_abs_FFT, SysParams, &p1);//calculate the region of the bins with max energy
-	Spectrogram2(Pxx2, Pxx2_dB, &T2_dB, Mscan_PostProcess, p1, SysParams);//calcualte real spectrogram
+	//	gettimeofday(&tpStart,0);
+//
+//	Spectrogram2(Pxx2, Pxx2_dB, &T2_dB, Mscan_PostProcess, p1, SysParams);//calcualte real spectrogram
+//	//	gettimeofday(&tpStop,0); f1 = ( (float)( tpStop.tv_sec-tpStart.tv_sec)+ (float)(tpStop.tv_usec)/1000000 ) -  ((float)(tpStart.tv_usec)/1000000); printf (" %f sec\n", f1 );
+//
+//	CalcCurves2(Pxx2, Pxx2_dB, &T2_dB, Edge2, SysParams);//CalcRedStarsCurve3 in Matlab
 
-	CalcCurves2(Pxx2, Pxx2_dB, &T2_dB, Edge2, SysParams);//CalcRedStarsCurve3 in Matlab
+	HilbertSpectrogram3(Pxx2_Hilbert, Pxx2, Pxx2_dB, &T2_dB, Mscan, p1, Edge2_Plus,
+			Edge2_Minus,Edge2, SysParams);//calculate spectrogram after hilbert (complex spectrogram)
 
-
-	HilbertSpectrogram2(Pxx2_Hilbert, Pxx2_dB, &T2_dB, Mscan, p1, Edge2_Plus,
-			Edge2_Minus, SysParams);//calculate spectrogram after hilbert (complex spectrogram)
 
 	MotionStruct->Edge2 = Edge2;
 	MotionStruct->Edge2_Plus = Edge2_Plus;
@@ -1038,8 +1070,10 @@ int Feature42_2(Motion_Struct2* MotionStruct, AllFeatures_Struct* FeatureSet) {
 	//fast movements like hands have energy at high frequencies so the outcome of this function will be big
 
 	int i, k, FFTLength = 256;
-	fftwf_complex out[FFTLength];
+	fftwf_complex out[FFTLength/2+1];
+
 	fftwf_plan my_plan;
+
 	int flags = 1;
 	float fftin_local_ptr_complex[FFTLength];
 	memset(fftin_local_ptr_complex,0,sizeof(fftin_local_ptr_complex));
@@ -1051,14 +1085,11 @@ int Feature42_2(Motion_Struct2* MotionStruct, AllFeatures_Struct* FeatureSet) {
 	float sum_preFFT_FiftyPrecent_Filtered = 0,
 			mean_preFFT_FiftyPrecent_Filtered;
 	float sum_nonzero_preFFT_FiftyPrecent_Filtered = 0;
-	//	_Complex float preFFT_FiftyPrecent_Filtered[FFTLength],
-	//	_Complex float  FFT_FiftyPrecent_Filtered[FFTLength / 2 + 1];
-	//	_Complex float exp_arg = -I * 2 * M_PI / FFTLength;
-	//	memset(preFFT_FiftyPrecent_Filtered, 0, FFTLength * sizeof(_Complex float));//initialize with zeros
-	//	float Sum_Energy_Minus, Sum_Energy_Plus, sum_FFT_FiftyPrecent_Filtered;
+
 	float SumEnergyPlus = 0,SumEnergyMinus = 0,sumFFTFiftyPrecentFiltered;
 	float absFFTFiftyPrecentFiltered[FFTLength / 2 + 1];
-	my_plan = fftwf_plan_dft_r2c_2d(FFTLength,1,fftin_local_ptr_complex,out,flags);
+	//	my_plan = fftwf_plan_dft_r2c_2d(FFTLength,1,fftin_local_ptr_complex,out,flags);
+	my_plan = fftwf_plan_dft_r2c_1d(FFTLength,fftin_local_ptr_complex,out,flags);
 
 
 
@@ -1092,7 +1123,10 @@ int Feature42_2(Motion_Struct2* MotionStruct, AllFeatures_Struct* FeatureSet) {
 			sumFFTFiftyPrecentFiltered = 0;
 
 			//memset(out,0,sizeof(out));
+			//			fftwf_execute_dft_r2c(my_plan,preFFTFiftyPrecentFiltered,out);
 			fftwf_execute_dft_r2c(my_plan,preFFTFiftyPrecentFiltered,out);
+
+
 
 			for (k = 0; k <= FFTLength / 2; k++) {	//Length/2 because only one side is wanted
 				absFFTFiftyPrecentFiltered[k]=powf(cabs(out[k]),2);
@@ -1475,10 +1509,10 @@ int SNRFeature(Edge2_Struct* Edge2_Plus, Edge2_Struct* Edge2_Minus,
 			(10 * log10(MeanOf_SumEnergy_Post_Minus) - T1_t_mean_Minus) * 0.1);
 
 	FeatureSet->Both->p1 = (Edge2_Plus->SNR_Linear)
-																																											/ (Edge2_Plus->SNR_Linear + Edge2_Minus->SNR_Linear);
+																																																																									/ (Edge2_Plus->SNR_Linear + Edge2_Minus->SNR_Linear);
 	FeatureSet->Both->SNR_Both = (10 * log10(MeanOf_SumEnergy_Post_Plus)
 	- T1_t_mean_Plus)
-																																											+ (10 * log10(MeanOf_SumEnergy_Post_Minus) - T1_t_mean_Minus);//caluclation for feature SNR_Both
+																																																																									+ (10 * log10(MeanOf_SumEnergy_Post_Minus) - T1_t_mean_Minus);//caluclation for feature SNR_Both
 
 	return 0;
 }
@@ -1536,7 +1570,7 @@ int CurveLength2(Motion_Struct2 *MotionStruct, Edge2_Struct* Edge2,
 			}
 		}
 	}
-	printf("%d\n", LengthOfMaxEvent);
+	//	printf("%d\n", LengthOfMaxEvent);
 
 	if (LengthOfMaxEvent > 0)
 		MotionStruct->EventStruct->LengthOfMaxEvent = LengthOfMaxEvent;
@@ -1555,7 +1589,7 @@ int CalcCurvesHilbert2(Pxx2_Plus_Struct *Pxx2_Plus,
 		Pxx2_Minus_Struct* Pxx2_Minus, Edge2_Struct* Edge2_Plus,
 		Edge2_Struct* Edge2_Minus, SysParams_Struct* SysParams) {//CalcRedStarsCurve3_FirstStep2 in Matlab
 	int k, i, idx_FreqBins_Spectogram = 0;
-	int MedianType;
+	int MedianType,IsHilbert;
 	int AllFreqAboveThresh_Plus[SysParams->SpectrogramFreqBinsHilbert / 2],
 	AllFreqAboveThresh_Minus[SysParams->SpectrogramFreqBinsHilbert / 2];
 	int idx_FreqAboveThresh_Plus, idx_FreqAboveThresh_Minus;
@@ -1773,10 +1807,9 @@ int CalcCurvesHilbert2(Pxx2_Plus_Struct *Pxx2_Plus,
 			Edge2_Minus->SumEnergy_Post[i] += Pxx2_Minus->Linear[k][i];	//sum the energy until black star curve, in linear
 		}
 	}
-
-	AvgFilter2(Edge2_Plus, SysParams->SpectrogramTimeBins, SysParams->AvgValue);//Average filter of the FiftyPrecent(blue) curve with AvgValue=5
-	AvgFilter2(Edge2_Minus, SysParams->SpectrogramTimeBins,
-			SysParams->AvgValue);//Average filter of the FiftyPrecent(blue) curve with AvgValue=5
+	IsHilbert=1;
+	AvgFilter(Edge2_Plus, SysParams,IsHilbert);//Average filter of the FiftyPrecent(blue) curve with AvgValue=5
+	AvgFilter(Edge2_Minus, SysParams ,IsHilbert);//Average filter of the FiftyPrecent(blue) curve with AvgValue=5
 	///PRINT HERE FIFTY////////////////
 	//	for(i=0;i<SysParams->SpectrogramTimeBins;i++){
 	//		printf("###PEAK FILTERED %d %lf\n",i,Edge2_Plus->Peak_Filtered[i] );
@@ -1792,15 +1825,19 @@ int HilbertSpectrogram2(float* Pxx2_Hilbert[], float* Pxx2_dB[], float *T2_dB,
 	int k;
 	int p2 = p1 + SysParams->RangeWide - 1;
 	//	_Complex float Signal_for_DFT[SysParams->winLength];
-
 	fftwf_complex *SignalForFFT;
 	SignalForFFT= (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * SysParams->SpectrogramFreqBinsHilbert);			//pay attention
 	memset(SignalForFFT,0,sizeof(fftwf_complex) * SysParams->SpectrogramFreqBinsHilbert);//was in original
 
-	fftwf_complex  *out;
+	//	fftwf_complex SignalForFFT[SysParams->SpectrogramFreqBinsHilbert];
+
+
 	fftwf_plan p;
 
+	fftwf_complex  *out;
 	out = (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * SysParams->SpectrogramFreqBinsHilbert);
+	//	fftwf_complex out[SysParams->SpectrogramFreqBinsHilbert];
+
 	p = fftwf_plan_dft_1d(SysParams->SpectrogramFreqBinsHilbert, SignalForFFT, out, FFTW_FORWARD, FFTW_ESTIMATE);
 
 	int noiseThresh = (5 + 6);
@@ -1842,25 +1879,25 @@ int HilbertSpectrogram2(float* Pxx2_Hilbert[], float* Pxx2_dB[], float *T2_dB,
 		MscanIQ[i] = (_Complex float *) malloc(
 				SysParams->Nbins * sizeof(_Complex float));
 	}
+	//	gettimeofday(&tpStart,0);
 
 	Hilbert(Mscan, MscanIQ, SysParams);//get the IQ signal with hilbert transform
-
-
+	//		gettimeofday(&tpStop,0);f1 = ( (float)( tpStop.tv_sec-tpStart.tv_sec)+ (float)(tpStop.tv_usec)/1000000 ) -  ((float)(tpStart.tv_usec)/1000000);
+	//		printf (" %f sec\n", f1 );
 	//PreProcess
 	SlowProcessingHilbert(MscanIQ,MscanIQ, SysParams); //remove DC
 	NotchFilterHilbert(MscanIQ, SysParams); //filter the 50&100Hz disturbance that occurred from the fluorescent lamp
 
 
 
-
 	for (j = p1; j <= p2; j++) {	//relevant bins [p1,p2]
+
 		for (i = 0; i < SysParams->SpectrogramTimeBins; i++) {//take the next 30 points of slow for the FFT
 
 			for (m = 0; m < SysParams->winLength; m++) {//windowing with hamming
 				SignalForFFT[m] = SysParams->Hamming[m]
 													 * MscanIQ[m + i * (SysParams->TimeShift)][j];
-				//				Signal_for_DFT[m] = SysParams->Hamming[m]
-				//													   * MscanIQ[m + i * (SysParams->TimeShift)][j];
+
 
 			}
 
@@ -1875,14 +1912,14 @@ int HilbertSpectrogram2(float* Pxx2_Hilbert[], float* Pxx2_dB[], float *T2_dB,
 					Pxx2_Hilbert[k][i] = 0;
 				}
 				Pxx2_Hilbert[k][i] += (SpectrogramPerRangeBin[k])
-																														/ (SysParams->RangeWide);//Calculate the average for the final spectrogram
+																																																												/ (SysParams->RangeWide);//Calculate the average for the final spectrogram
 
 				if (k < SysParams->SpectrogramFreqBinsHilbert / 2 + 1) {//fill the Plus part of the spectrogram
 					if (j == p1) {//if it's the first spectrogram per range bin, put 0 first
 						Pxx2_Plus.Linear[k][i] = 0;
 					}
 					Pxx2_Plus.Linear[k][i] += (SpectrogramPerRangeBin[k])
-																															/ (SysParams->RangeWide);
+																																																													/ (SysParams->RangeWide);
 
 				}
 
@@ -1897,59 +1934,16 @@ int HilbertSpectrogram2(float* Pxx2_Hilbert[], float* Pxx2_dB[], float *T2_dB,
 						Pxx2_Minus.Linear[0][i] = Pxx2_Plus.Linear[0][i];
 					} else {
 						Pxx2_Minus.Linear[SysParams->SpectrogramFreqBinsHilbert - k][i] += (SpectrogramPerRangeBin[k])
-																																/ (SysParams->RangeWide);//the spectrum stored flipped
+																																																														/ (SysParams->RangeWide);//the spectrum stored flipped
 					}
 				}
-
 			}
-
-
-
-			//
-			//		for (k = 0; k < SysParams->SpectrogramFreqBinsHilbert; k++) {//Perform short-time fourier transform
-			//			ResultDFT[k] = 0;
-			//			for (n = 0; n < SysParams->winLength; n++) {
-			//				ResultDFT[k] += cexp(k * n * exp_arg) * Signal_for_DFT[n];
-			//			}
-			//
-			//			Spectrogram_per_RangeBin[k][i] = powf(cabs(ResultDFT[k]), 2);
-			//			//
-			//			if (j == p1) {//if it's the first spectrogram per range bin, put 0 first
-			//				Pxx2_Hilbert[k][i] = 0;
-			//			}
-			//			Pxx2_Hilbert[k][i] += (Spectrogram_per_RangeBin[k][i])
-			//																																		/ (SysParams->RangeWide);//Calculate the average for the final spectrogram
-			//
-			//			if (k < SysParams->SpectrogramFreqBinsHilbert / 2 + 1) {//fill the Plus part of the spectrogram
-			//				if (j == p1) {//if it's the first spectrogram per range bin, put 0 first
-			//					Pxx2_Plus.Linear[k][i] = 0;
-			//				}
-			//				Pxx2_Plus.Linear[k][i] += (Spectrogram_per_RangeBin[k][i])
-			//																																			/ (SysParams->RangeWide);
-			//				//					printf(" p %d %d %lf\n",k,i,Pxx2_Plus.Linear[k][i]);
-			//
-			//			}
-			//			if ((k >= SysParams->SpectrogramFreqBinsHilbert / 2)) {	//fill the Minus part of the spectrogram
-			//				if (j == p1) {//if it's the first spectrogram per range bin, put 0 first
-			//
-			//					Pxx2_Minus.Linear[SysParams->SpectrogramFreqBinsHilbert
-			//									  - k][i] = 0;
-			//
-			//				}
-			//				if (k == SysParams->SpectrogramFreqBinsHilbert / 2) {
-			//					Pxx2_Minus.Linear[0][i] = Pxx2_Plus.Linear[0][i];
-			//				} else {
-			//					Pxx2_Minus.Linear[SysParams->SpectrogramFreqBinsHilbert
-			//									  - k][i] += (Spectrogram_per_RangeBin[k][i])
-			//																																				/ (SysParams->RangeWide);//the spectrum stored flipped
-			//				}
-			//			}
-			//
-			//		}
 
 
 		}
 	}
+
+
 
 	for (i = 0; i < SysParams->SpectrogramTimeBins; i++) {
 		SumForMeanPlus = 0;
@@ -2014,40 +2008,248 @@ int HilbertSpectrogram2(float* Pxx2_Hilbert[], float* Pxx2_dB[], float *T2_dB,
 	return 0;
 }
 
+
+
+
+
+
+
+
+
+
+int HilbertSpectrogram3(float* Pxx2_Hilbert[],float* Pxx2[], float* Pxx2_dB[], float *T2_dB,
+		float* Mscan[], int p1, Edge2_Struct *Edge2_Plus,
+		Edge2_Struct * Edge2_Minus,Edge2_Struct * Edge2, SysParams_Struct* SysParams) {
+
+	int i, j, m;
+	int k;
+	int p2 = p1 + SysParams->RangeWide - 1;
+	fftwf_complex *SignalForFFT;
+	SignalForFFT= (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * SysParams->SpectrogramFreqBinsHilbert);			//pay attention
+	memset(SignalForFFT,0,sizeof(fftwf_complex) * SysParams->SpectrogramFreqBinsHilbert);//was in original
+
+	fftwf_plan my_plan_fft;
+
+	fftwf_complex  *out;
+	out = (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * SysParams->SpectrogramFreqBinsHilbert);
+
+	my_plan_fft = fftwf_plan_dft_1d(SysParams->SpectrogramFreqBinsHilbert, SignalForFFT, out, FFTW_FORWARD, FFTW_ESTIMATE);
+
+	int noiseThreshHilbert = (5 + 6);
+	int noiseThresh = 5;
+
+	_Complex float *MscanIQ[SysParams->Nscans];
+	float SumForMeanPlus, SumForMeanMinus, SumForMeanReal,SumForMeanRealPerTimeBin;
+	float SpectrogramPerRangeBin[SysParams->SpectrogramFreqBinsHilbert];
+	int SizeForMean = SysParams->SpectrogramTimeBins
+				* (SysParams->noiseFreqBins);
+
+	Pxx2_Plus_Struct Pxx2_Plus;
+	Pxx2_Minus_Struct Pxx2_Minus;
+
+	for (i = 0; i < SysParams->SpectrogramFreqBinsHilbert / 2 + 1; i++) {//=101
+		Pxx2_Plus.Linear[i] = (float *) malloc(
+				SysParams->SpectrogramTimeBins * sizeof(float));
+		Pxx2_Plus.dB[i] = (float *) malloc(
+				SysParams->SpectrogramTimeBins * sizeof(float));
+
+		if (i < SysParams->SpectrogramFreqBinsHilbert / 2) {
+			Pxx2_Minus.Linear[i] = (float *) malloc(
+					SysParams->SpectrogramTimeBins * sizeof(float));
+			Pxx2_Minus.dB[i] = (float *) malloc(
+					SysParams->SpectrogramTimeBins * sizeof(float));
+		}
+	}
+
+
+	for (i = 0; i < SysParams->Nscans; i++) {
+		MscanIQ[i] = (_Complex float *) malloc(
+				SysParams->Nbins * sizeof(_Complex float));
+	}
+	//	gettimeofday(&tpStart,0);
+
+	Hilbert(Mscan, MscanIQ, SysParams);//get the IQ signal with hilbert transform
+	//		gettimeofday(&tpStop,0);f1 = ( (float)( tpStop.tv_sec-tpStart.tv_sec)+ (float)(tpStop.tv_usec)/1000000 ) -  ((float)(tpStart.tv_usec)/1000000);
+	//		printf (" %f sec\n", f1 );
+	//PreProcess
+	SlowProcessingHilbert(MscanIQ,MscanIQ, SysParams); //remove DC
+	NotchFilterHilbert(MscanIQ, SysParams); //filter the 50&100Hz disturbance that occurred from the fluorescent lamp
+
+
+	for (j = p1; j <= p2; j++) {	//relevant bins [p1,p2]
+
+		for (i = 0; i < SysParams->SpectrogramTimeBins; i++) {//take the next 30 points of slow for the FFT
+
+			for (m = 0; m < SysParams->winLength; m++) {//windowing with hamming
+				SignalForFFT[m] = SysParams->Hamming[m]
+													 * MscanIQ[m + i * (SysParams->TimeShift)][j];
+
+
+			}
+
+
+			fftwf_execute(my_plan_fft);//short time fft on 30 time bins
+
+			for (k = 0; k < SysParams->SpectrogramFreqBinsHilbert; k++) {
+				SpectrogramPerRangeBin[k]= powf(cabsf(out[k]),2);
+				//				printf("%d %f\n",k,SpectrogramPerRangeBin[k]);
+
+				if (j == p1) {//if it's the first spectrogram per range bin, put 0 first
+					Pxx2_Hilbert[k][i] = 0;
+
+				}
+				Pxx2_Hilbert[k][i] += (SpectrogramPerRangeBin[k]) / (SysParams->RangeWide);//Calculate the average for the final spectrogram
+
+				if (k < SysParams->SpectrogramFreqBinsHilbert / 2 + 1) {//fill the Plus part of the spectrogram
+					if (j == p1) {//if it's the first spectrogram per range bin, put 0 first
+						Pxx2_Plus.Linear[k][i] = 0;
+
+
+					}
+					Pxx2_Plus.Linear[k][i] += (SpectrogramPerRangeBin[k]) / (SysParams->RangeWide);
+
+				}
+				/////
+				if(k>= 1 && k<= SysParams->SpectrogramFreqBinsHilbert / 2){//sum for the real spectrogram
+					if (j == p1) //if it's the first spectrogram per range bin, put 0 first
+						Pxx2[k-1][i] = 0;
+
+					Pxx2[k-1][i] +=(0.5 * (SpectrogramPerRangeBin[k]) / (SysParams->RangeWide));//Calculate the average for the final REAL spectrogram
+				}
+				//////
+				if ((k >= SysParams->SpectrogramFreqBinsHilbert / 2)) {	//fill the Minus part of the spectrogram
+					if (j == p1) {//if it's the first spectrogram per range bin, put 0 first
+
+						Pxx2_Minus.Linear[SysParams->SpectrogramFreqBinsHilbert - k][i] = 0;
+
+					}
+					if (k == SysParams->SpectrogramFreqBinsHilbert / 2) {
+						Pxx2_Minus.Linear[0][i] = Pxx2_Plus.Linear[0][i];
+						Pxx2[0][i] +=(0.5 * (SpectrogramPerRangeBin[0]) / (SysParams->RangeWide));//Calculate the average for the final REAL spectrogram
+
+					} else {
+						Pxx2_Minus.Linear[SysParams->SpectrogramFreqBinsHilbert - k][i] += (SpectrogramPerRangeBin[k]) / (SysParams->RangeWide);//the spectrum stored flipped
+						Pxx2[SysParams->SpectrogramFreqBinsHilbert - k][i] +=(0.5 * (SpectrogramPerRangeBin[k]) / (SysParams->RangeWide));//Calculate the average for the final REAL spectrogram
+
+					}
+				}
+
+			}
+
+
+		}
+	}
+
+
+	//calculate in dB:
+
+	SumForMeanReal=0;
+
+	for (i = 0; i < SysParams->SpectrogramTimeBins; i++) {
+		SumForMeanPlus = 0;
+		SumForMeanMinus = 0;
+		SumForMeanRealPerTimeBin=0;
+		for (k = 0; k < SysParams->SpectrogramFreqBinsHilbert / 2 + 1; k++) {
+			Pxx2_Plus.dB[k][i] = 10 * log10(Pxx2_Plus.Linear[k][i]);
+			//			printf(" p %d %d %lf %lf %lf\n",i,k,Pxx2_Plus.Linear[k][i],10*log10(Pxx2_Plus.Linear[k][i]),Pxx2_Plus.dB[k][i]);
+			if ((k < SysParams->SpectrogramFreqBinsHilbert / 2)) {
+				Pxx2_Minus.dB[k][i] = 10 * log10(Pxx2_Minus.Linear[k][i]);
+				//				printf(" m %d %d %lf %lf %lf\n",i,k,Pxx2_Minus.Linear[k][i],10*log10(Pxx2_Minus.Linear[k][i]),Pxx2_Minus.dB[k][i]);
+				Pxx2_dB[k][i] = 10 * log10(Pxx2[k][i]);
+			}
+			//caclucaltuation of the mean of the last 4 bins for the noise floor estimation
+			if (k
+					>= (SysParams->SpectrogramFreqBinsHilbert / 2 + 1
+							- SysParams->noiseFreqBins)) {
+				SumForMeanPlus += Pxx2_Plus.Linear[k][i];
+			}
+			if (k >= (SysParams->SpectrogramFreqBinsHilbert / 2 - SysParams->noiseFreqBins)) {
+				SumForMeanMinus += Pxx2_Minus.Linear[k][i];
+			}
+			if (k < SysParams->SpectrogramFreqBinsHilbert / 2 && k >= (SysParams->SpectrogramFreqBinsHilbert / 2 - SysParams->noiseFreqBins)) {
+							SumForMeanRealPerTimeBin += Pxx2[k][i];
+						}
+		}
+		Edge2_Plus->T1_t[i] = 10
+				* log10(SumForMeanPlus / SysParams->noiseFreqBins)
+		+ noiseThreshHilbert;						//WAS PXX2
+		Edge2_Minus->T1_t[i] = 10
+				* log10(SumForMeanMinus / SysParams->noiseFreqBins)
+		+ noiseThreshHilbert;
+
+		SumForMeanReal+=SumForMeanRealPerTimeBin;
+
+	}
+
+
+	*T2_dB=10*log10(SumForMeanReal/SizeForMean)+noiseThresh;
+	CalcCurves2(Pxx2, Pxx2_dB, T2_dB, Edge2, SysParams);//CalcRedStarsCurve3 in Matlab
+
+
+
+
+	CalcCurvesHilbert2(&Pxx2_Plus, &Pxx2_Minus, Edge2_Plus, Edge2_Minus,
+			SysParams);				//CalcRedStarsCurve3_FirstStep2 in Matlab
+
+	//FREE MEMORY
+	for (i = 0; i < SysParams->SpectrogramFreqBinsHilbert / 2 + 1; i++) {//=101
+		free(Pxx2_Plus.Linear[i]);
+		free(Pxx2_Plus.dB[i]);
+
+		if (i < SysParams->SpectrogramFreqBinsHilbert / 2) {
+			free(Pxx2_Minus.Linear[i]);
+			free(Pxx2_Minus.dB[i]);
+		}
+	}
+
+	for (i = 0; i < SysParams->Nscans; i++) {
+		free(MscanIQ[i]);
+	}
+
+
+	fftwf_destroy_plan(my_plan_fft);
+	fftwf_free(SignalForFFT);
+	fftwf_free(out);
+	return 0;
+}
+
+
+
+
+
+
+
+
+
+
 int Hilbert(float* Mscan[], _Complex float* MscanIQ[], SysParams_Struct* SysParams) {
 	//This function is the implemantion of hilbert function in Matlab that based on the article
 	//Marple, S. L. �Computing the Discrete-Time Analytic Signal via FFT.�
 	int k, n, i;
 
 	float SignalForFFT[SysParams->Nbins];
-	fftwf_complex MscanFFT[SysParams->Nbins];
+	fftwf_complex MscanFFT[SysParams->Nbins/2];
 	fftwf_complex MscanIFFT[SysParams->Nbins];
 
 	fftwf_plan my_plan_fft;
+
 	fftwf_plan my_plan_ifft;
 
 	int flags = 1;
 	float fftin_local_ptr_complex[SysParams->Nbins];
 	memset(fftin_local_ptr_complex,0,sizeof(fftin_local_ptr_complex));
 
-	my_plan_fft = fftwf_plan_dft_r2c_2d(SysParams->Nbins,1,fftin_local_ptr_complex,MscanFFT,flags);
+	my_plan_fft = fftwf_plan_dft_r2c_1d(SysParams->Nbins,fftin_local_ptr_complex,MscanFFT,flags);
 
 	my_plan_ifft = fftwf_plan_dft_1d(SysParams->Nbins,MscanFFT, MscanIFFT, FFTW_BACKWARD, FFTW_ESTIMATE);
-
-	//	_Complex float Mscan_IFFT[SysParams->Nbins];
-	//	memset(Mscan_IFFT,0,sizeof(Mscan_IFFT));
-
-	//	_Complex float exp_arg = -I * 2 * M_PI / SysParams->Nbins;
 
 	for (i = 0; i <  SysParams->Nscans; i++) {//implement FFT, erase the negative frequencies and implement IFFT.
 
 		memcpy(SignalForFFT,Mscan[i],SysParams->Nbins * sizeof(Mscan[0][0]));//prepare the signal for FFT
 
 		fftwf_execute_dft_r2c(my_plan_fft,SignalForFFT,MscanFFT);//FFT
-		//		for (n = 0; n < SysParams->Nbins; n++){
-		//			printf("%d %d %f + %f\n",i,n,crealf(MscanFFT[n]),cimagf(MscanFFT[n]));
-		//
-		//		}
+
+
 		for (k = 1; k < SysParams->Nbins / 2; k++) {
 			MscanFFT[k] = 2 * MscanFFT[k]; //in range K=[1,Nscans/2] as the algorithm says and normalize by N
 
@@ -2060,35 +2262,7 @@ int Hilbert(float* Mscan[], _Complex float* MscanIQ[], SysParams_Struct* SysPara
 			MscanIQ[i][n]=conj(MscanIFFT[n])/(SysParams->Nbins);//use memcpy instead
 			//printf("%d %d %f + %f\n",i,n,crealf(MscanIFFT[n]),cimagf(MscanIFFT[n]));
 		}
-		//				memcpy(MscanIQ[i],MscanIFFT/(SysParams->Nbins), sizeof(MscanIFFT));
 
-		//
-		//		for (k = 0; k < SysParams->Nbins; k++) {	//FFT
-		//			Mscan_FFT[k] = 0;
-		//			if (k <= SysParams->Nbins / 2) {//calculate only for the positive frequencies and stay remain 0 the negative
-		//				for (n = 0; n < SysParams->Nbins; n++) {//implement one sided FFT in range of k=[0,Nbins/2+1]
-		//					Mscan_FFT[k] += cexp(k * n * exp_arg) * Mscan[i][n];
-		//
-		//				}
-		//
-		//				if (k >= 1 && k < SysParams->Nbins / 2) {
-		//					Mscan_FFT[k] = 2 * Mscan_FFT[k]; //in range K=[1,Nscans/2] as the algorithm says
-		//				}
-		//			}
-		//
-		//		}
-		//
-		//
-		//		for (n = 0; n < SysParams->Nbins; n++) { //IFFT
-		//			Mscan_IFFT[n] = 0;
-		//			for (k = 0; k < SysParams->Nbins; k++) {
-		//				Mscan_IFFT[n] += cexp(-k * n * exp_arg) * MscanFFT[k];
-		//
-		//
-		//			}
-		////			MscanIQ[i][n] = conj(Mscan_IFFT[n]) / SysParams->Nbins;
-		//
-		//		}
 	}
 	fftwf_destroy_plan(my_plan_fft);
 	fftwf_destroy_plan(my_plan_ifft);
@@ -2189,7 +2363,7 @@ int MedianFilter2(Edge2_Struct *Edge2, int SpectrogramTimeBins, int MedianValue,
 			//				else
 			//			tst[i]=gsl_vector_get(output, i);
 			//					myout[i] = (gsl_vector_get(output, i) + gsl_vector_get(output, i-1)) / 2;
-			printf("value %d : %f\n",i,myout[i] );
+			//			printf("value %d : %f\n",i,myout[i] );
 		}
 
 
@@ -2307,7 +2481,7 @@ int MedianFilterFor50Precent(Edge2_Struct *Edge2,
 	for(i = 0 ; i < (SignalLength ) ; i++)
 	{
 		Edge2_50Precent_MedianFiltered[i] =  gsl_vector_get(output, i);
-//		printf("%d %f\n",i,Edge2_50Precent_MedianFiltered[i]);
+		//		printf("%d %f\n",i,Edge2_50Precent_MedianFiltered[i]);
 	}
 
 	gsl_movstat_free(w);
@@ -2363,7 +2537,7 @@ float MedianFilterFor50Precent2(Edge2_Struct *Edge2,
 	for(i = 0 ; i < (SignalLength ) ; i++)
 	{
 		Edge2_50Precent_MedianFiltered[i] =  gsl_vector_get(output, i);
-		printf("%d %f\n",i,Edge2_50Precent_MedianFiltered[i]);
+		//		printf("%d %f\n",i,Edge2_50Precent_MedianFiltered[i]);
 	}
 
 
@@ -2482,6 +2656,8 @@ int NotchFilter2(float* Mscan[], SysParams_Struct* SysParams) {
 																															   - a_50[1] * filter_result_50[i - 1]
 																																							- a_50[2] * filter_result_50[i - 2]) / a_50[0];
 			}
+
+
 			//notch filter @100Hz:
 			if (i == 0) {	//initial conditions for the first bins
 				filter_result_100[0] = b_100[0] * filter_result_50[0]
@@ -2555,6 +2731,12 @@ int NotchFilterHilbert(_Complex float* Mscan[], SysParams_Struct* SysParams) {
 																															   - a_50[1] * filter_result_50[i - 1]
 																																							- a_50[2] * filter_result_50[i - 2]) / a_50[0];
 			}
+
+
+
+
+
+
 			//notch filter @100Hz:
 			if (i == 0) {	//initial conditions for the first bins
 				filter_result_100[0] = b_100[0] * filter_result_50[0]
@@ -2587,92 +2769,118 @@ int AbsOfFFT2(float* Mscan[], float* Mscan_abs_FFT[],
 	int k, n, j;
 	_Complex float Mscan_FFT[SysParams->DFTLengthForPSD];
 
-	fftwf_complex MscanFFT[SysParams->DFTLengthForPSD];
+	//	fftwf_complex MscanFFT[SysParams->DFTLengthForPSD];
+	fftwf_complex MscanFFT[SysParams->Nscans/2+1];
 
 	fftwf_plan my_plan;
+	fftwf_plan my_plan2;
 	int flags = 1;
 	float SignalForFFT[SysParams->Nscans];
 	float fftin_local_ptr_complex[SysParams->DFTLengthForPSD];
 	memset(fftin_local_ptr_complex,0,sizeof(fftin_local_ptr_complex));
-	my_plan = fftwf_plan_dft_r2c_2d(SysParams->Nscans,1,fftin_local_ptr_complex,MscanFFT,flags);
+	//	my_plan = fftwf_plan_dft_r2c_2d(SysParams->Nscans,1,fftin_local_ptr_complex,MscanFFT,flags);
+	my_plan = fftwf_plan_dft_r2c_1d(SysParams->Nscans,fftin_local_ptr_complex,MscanFFT,flags);
 
+	//	gettimeofday(&tpStart,0);
 
 	for (j = 0; j < SysParams->Nbins; j++) {
 		for (n = 0; n < SysParams->Nscans; n++){
 			SignalForFFT[n]=Mscan[n][j];
 		}
 		fftwf_execute_dft_r2c(my_plan,SignalForFFT,MscanFFT);
+		//		fftwf_execute_dft_r2c(my_plan2,SignalForFFT,MscanFFT2);
+
 
 		for (k = 0; k <SysParams->DFTLengthForPSD; k++) {	//Length/2 because only one side is wanted
 			Mscan_abs_FFT[k][j]=powf(cabs(MscanFFT[k]),2);
 		}
 
 
-		////////////////////////
-		for (k = 0; k < SysParams->DFTLengthForPSD; k++) {
 
-			Mscan_FFT[k] = 0;
-			for (n = 0; n < SysParams->Nscans; n++) {//implement one sided FFT in range of k=[0,Nscans/2+1]
-				Mscan_FFT[k] += cexp(-I * k * n * 2 * M_PI / SysParams->Nscans)
-																																														* Mscan[n][j];
-			}
-			Mscan_abs_FFT[k][j] = powf(cabs(Mscan_FFT[k]), 2);
-		}
+
+		//		for (k = 0; k < SysParams->DFTLengthForPSD; k++) {
+		//
+		//			Mscan_FFT[k] = 0;
+		//			for (n = 0; n < SysParams->Nscans; n++) {//implement one sided FFT in range of k=[0,Nscans/2+1]
+		//				Mscan_FFT[k] += cexp(-I * k * n * 2 * M_PI / SysParams->Nscans)
+		//																																																																		* Mscan[n][j];
+		//			}
+		//			Mscan_abs_FFT[k][j] = powf(cabs(Mscan_FFT[k]), 2);
+		//		}
+
 	}
+	//	gettimeofday(&tpStop,0); f1 = ( (float)( tpStop.tv_sec-tpStart.tv_sec)+ (float)(tpStop.tv_usec)/1000000 ) -  ((float)(tpStart.tv_usec)/1000000); printf (" %f sec\n", f1 );
+
 	fftwf_destroy_plan(my_plan);
 	return 0;
 }
 
-int MacthedFilter(float* Mscan[], int Nscans, int Nbins) {
-	int Filter_Length = 19;
-	float filter_coeffs[19];
-	float InverseFilterGain = 0.599264554413850;
-	float filtered_result[Nbins];
-	int i, j, running_idx;
+int MatchedFilter(float* Mscan[], SysParams_Struct* SysParams) {
 
-	filter_coeffs[0] = 0.000408;
-	filter_coeffs[1] = -0.041049471281062;
-	filter_coeffs[2] = 0.008649261539219;
-	filter_coeffs[3] = 0.229369;
-	filter_coeffs[4] = -0.0563189130046412;
-	filter_coeffs[5] = -0.520325728953466;
-	filter_coeffs[6] = 0.165011;
-	filter_coeffs[7] = 0.892380443834730;
-	filter_coeffs[8] = -0.067669198947082;
-	filter_coeffs[9] = -0.9717;
-	filter_coeffs[10] = 0.156922538937629;
-	filter_coeffs[11] = 0.717920067065040;
-	filter_coeffs[12] = -0.128898;
-	filter_coeffs[13] = -0.349983210110945;
-	filter_coeffs[14] = 0.0915642458163692;
-	filter_coeffs[15] = 0.090303;
-	filter_coeffs[16] = -0.022514346739832;
-	filter_coeffs[17] = -0.013823220906457;
-	filter_coeffs[18] = 0.003896;
+	ne10_fir_instance_f32_t SN; // An FIR "instance structure"
+	int FilterLength = 19;
+	int SignalLength=SysParams->Nbins+FilterLength-1;
+	ne10_float32_t fir_coeffs[FilterLength];
 
-	for (i = 0; i < Nscans; i++) {
-		for (j = 0; j < Nbins; j++) {
+	ne10_float32_t fir_state_neon[FilterLength+SysParams->Nbins];
+	ne10_float32_t FilteredSignal[SysParams->Nbins];
+	ne10_float32_t SignalForFilter[SysParams->Nbins];
 
-			filtered_result[j] = 0;
-			if (j < Filter_Length) {//the case of filtration of the first 19 bins
-				for (running_idx = 0; running_idx <= j; running_idx++)
-					filtered_result[j] += Mscan[i][j - running_idx]
-												   * filter_coeffs[running_idx];
+	int i,j;
 
-			} else {
-				for (running_idx = 0; running_idx < Filter_Length;
-						running_idx++)
-					filtered_result[j] += Mscan[i][j - running_idx]
-												   * filter_coeffs[running_idx];
-			}
+	//	static ne10_float32_t * guarded_SignalForFilter = NULL;
+	//	static ne10_float32_t * guarded_FilteredSignal = NULL;
+	//	static ne10_float32_t * guarded_fir_state_neon = NULL;
+	//	static ne10_float32_t * SignalForFilter = NULL;
+	//	static ne10_float32_t * FilteredSignal = NULL;
+	//	static ne10_float32_t * fir_state_neon = NULL;
 
-		}
-		for (j = 0; j < Nbins; j++) {
-			Mscan[i][j] = filtered_result[j] * InverseFilterGain;
-			;
-			//			printf("%d %d %lf\n",i, j,Mscan[i][j]);
-		}
+
+	//the coeffs are after multipling on InverseFilterGain = 0.599264554413850;
+
+	fir_coeffs[0]=0.002334734703996;
+	fir_coeffs[1]=-0.0082837663;
+	fir_coeffs[2]=-0.01349205;
+	fir_coeffs[3]=0.0541153871;
+	fir_coeffs[4]=0.054871207;
+	fir_coeffs[5]=-0.2097325325;
+	fir_coeffs[6]=-0.0772440025;
+	fir_coeffs[7]=0.4302240491;
+	fir_coeffs[8]=0.0940381154;
+	fir_coeffs[9]=-0.5823053675;
+	fir_coeffs[10]=-0.0405517524;
+	fir_coeffs[11]=0.534771969;
+	fir_coeffs[12]=0.0988852434;
+	fir_coeffs[13]=-0.3118127661;
+	fir_coeffs[14]=-0.0337499283;
+	fir_coeffs[15]=0.1374527116;
+	fir_coeffs[16]=0.0051831959;
+	fir_coeffs[17]=-0.0245994931;
+	fir_coeffs[18]=0.0002444999;
+
+	//
+	//	NE10_SRC_ALLOC (SignalForFilter, guarded_SignalForFilter,SysParams->Nbins); // 16 extra bytes at the begining and 16 extra bytes at the end
+	//	GUARD_ARRAY (SignalForFilter, SysParams->Nbins);
+	//	NE10_DST_ALLOC (FilteredSignal, guarded_FilteredSignal, SysParams->Nbins);
+	//	GUARD_ARRAY (FilteredSignal,SysParams->Nbins);
+	//	NE10_DST_ALLOC (fir_state_neon, guarded_fir_state_neon, FilterLength + SysParams->Nbins);
+
+
+	for (i = 0 ;i < SysParams->Nscans; i++) {
+		for(j=0;j<SysParams->Nbins;j++)
+			SignalForFilter[j]=Mscan[i][j];
+
+		ne10_fir_init_float (&SN,FilterLength, fir_coeffs, fir_state_neon,SysParams->Nbins);
+		ne10_fir_float_c (&SN, SignalForFilter , FilteredSignal ,SysParams->Nbins);
+		for(j=0;j<SysParams->Nbins;j++)
+			Mscan[i][j]=FilteredSignal[j];
+
 	}
+
+
+	//	free(guarded_SignalForFilter);
+	//	free(guarded_FilteredSignal);
+	//	free(guarded_fir_state_neon);
 
 	return 0;
 }
@@ -2728,8 +2936,14 @@ int MacthedFilter2(float* Mscan[], SysParams_Struct* SysParams) {
 		}
 	}
 
+
+
 	return 0;
 }
+
+
+
+
 
 int GET_ROI2(float *Mscan_abs_FFT[], SysParams_Struct* SysParams, int *p1) {
 	int FrequncyRange = ceil(SysParams->DFTLengthForPSD / 2);//Rangepowfer is calucalted over this range of frequencies
@@ -2767,7 +2981,8 @@ int Spectrogram2(float* Pxx2[], float* Pxx2_dB[], float *T2_dB, float* Mscan[],
 		int p1, SysParams_Struct* SysParams) {
 
 
-	fftwf_complex out[SysParams->DFTLengthForSpectrogram];
+	fftwf_complex out[SysParams->SpectrogramFreqBins];
+
 
 	float SignalForFFT[SysParams->DFTLengthForSpectrogram];
 	memset(SignalForFFT,0,sizeof(SignalForFFT));//was in original
@@ -2775,14 +2990,14 @@ int Spectrogram2(float* Pxx2[], float* Pxx2_dB[], float *T2_dB, float* Mscan[],
 	float SpectrogramPerRangeBin[SysParams->SpectrogramFreqBins][SysParams->SpectrogramTimeBins];
 
 
-	fftw_plan my_plan;
+	fftw_plan my_plan,my_plan2;
 	int flags = 1;
 	float fftin_local_ptr_complex[SysParams->DFTLengthForSpectrogram];
 	memset(fftin_local_ptr_complex,0,sizeof(fftin_local_ptr_complex));
 
 	int i, j, m;
 	int k, n, p2;
-	float Signal_for_DFT[SysParams->winLength];
+	//	float Signal_for_DFT[SysParams->winLength];
 
 	int SizeForMean = SysParams->SpectrogramTimeBins
 			* (SysParams->noiseFreqBins);
@@ -2792,18 +3007,24 @@ int Spectrogram2(float* Pxx2[], float* Pxx2_dB[], float *T2_dB, float* Mscan[],
 	//	_Complex float exp_arg = -I * 2 * M_PI / SysParams->DFTLengthForSpectrogram;
 
 	p2 = p1 + SysParams->RangeWide - 1;
+	//	my_plan = fftwf_plan_dft_r2c_2d(SysParams->DFTLengthForSpectrogram,1,fftin_local_ptr_complex,out,flags);
+	my_plan = fftwf_plan_dft_r2c_1d(SysParams->DFTLengthForSpectrogram,fftin_local_ptr_complex,out,flags);
+
+	//	gettimeofday(&tpStart,0);
 	for (j = p1; j <= p2; j++) {	//relevant bins [p1,p2]
 		for (i = 0; i < SysParams->SpectrogramTimeBins; i++) {//take the next 30 points of slow for the FFT
+
+
+
 			for (m = 0; m < SysParams->winLength; m++) {//windowing with hamming
-				//				Signal_for_DFT[m] = SysParams->Hamming[m]
-				//													   * Mscan[m + i * (SysParams->TimeShift)][j];
+
 				SignalForFFT[m] = SysParams->Hamming[m]
 													 * Mscan[m + i * (SysParams->TimeShift)][j];
+
 			}
 
 			//FFT
 			//	memset(out,0,sizeof(out));//was in original
-			my_plan = fftwf_plan_dft_r2c_2d(SysParams->DFTLengthForSpectrogram,1,fftin_local_ptr_complex,out,flags);
 			fftwf_execute_dft_r2c(my_plan,SignalForFFT,out);
 			for (k = 0; k < SysParams->SpectrogramFreqBins; k++) {//Perform short-time fourier transform take in range [0,pi]
 
@@ -2812,27 +3033,17 @@ int Spectrogram2(float* Pxx2[], float* Pxx2_dB[], float *T2_dB, float* Mscan[],
 					Pxx2[k][i] = 0;
 				}
 				Pxx2[k][i] += (SpectrogramPerRangeBin[k][i])
-																																																	/ (SysParams->RangeWide);//Calculate the average for the final spectrogram
+																																																																															/ (SysParams->RangeWide);//Calculate the average for the final spectrogram
 			}
 
 
-			//			for (k = 0; k < SysParams->SpectrogramFreqBins; k++) {//Perform short-time fourier transform take in range [0,pi]
-			//				ResultDFT[k] = 0;
-			//				for (n = 0; n < SysParams->winLength; n++) {
-			//					ResultDFT[k] += cexp(n * k * exp_arg) * Signal_for_DFT[n];
-			//				}
-			//				Spectrogram_per_RangeBin[k][i] = powf(cabs(ResultDFT[k]), 2);
-			//				//							printf(" %d %d %lf\n",k,i,Spectrogram_per_RangeBin[k][i]);
-			//
-			//				if (j == p1) {//if it's the first spectrogram per range bin, put 0 first
-			//					Pxx3[k][i] = 0;
-			//				}
-			//				Pxx3[k][i] += (Spectrogram_per_RangeBin[k][i])
-			//															/ (SysParams->RangeWide);//Calculate the average for the final spectrogram
-			//				//							printf("%d %d    %f\n",k,i,Pxx2[k][i]);
-			//			}
+
 		}
 	}
+	//    gettimeofday(&tpStop,0); f1 = ( (float)( tpStop.tv_sec-tpStart.tv_sec)+ (float)(tpStop.tv_usec)/1000000 ) -  ((float)(tpStart.tv_usec)/1000000); printf (" %f sec\n", f1 );
+
+
+
 	for (i = 0; i < SysParams->SpectrogramTimeBins; i++) {
 		//		for(k=SpectrogramFreqBins-noiseFreqBins;k<SpectrogramFreqBins;k++){
 		for (k = 0; k < SysParams->SpectrogramFreqBins; k++) {
@@ -2849,47 +3060,106 @@ int Spectrogram2(float* Pxx2[], float* Pxx2_dB[], float *T2_dB, float* Mscan[],
 	T2_Linear = T2_Linear / SizeForMean;
 
 	*T2_dB = 10 * log10(T2_Linear) + SysParams->noiseThresh;//average of all the spectrogram in dB + noiseThresh
+
 	return 0;
 }
 
-int AvgFilter2(Edge2_Struct *Edge2, int SpectrogramTimeBins, int AvgValue) {
-	float filtered_result[SpectrogramTimeBins];
-	int SignalLength=SpectrogramTimeBins+AvgValue-1;
-	float SignalForAvg[SignalLength];
-
-	int i, m;
-	///CHECK AGAIN THE CASE OF PLUS AT MOTION STRUCT 2
-	//	for(i=0;i<4;i++)
-	//		printf("@@   %d %lf\n",i,Edge2->PrevLastFiftyPrecent[i] );
-
-	for (i = 0; i < SpectrogramTimeBins; i++) {
-		filtered_result[i] = 0;
-		if (i < AvgValue) {
-			for (m = 0; m < AvgValue - i - 1; m++) {//sum on last AvgValue-i bins in current
-				filtered_result[i] += Edge2->PrevLastFiftyPrecent[m + i];
-			}
-			for (m = 0; m <= i; m++) {	//sum on first i bins in current
-				filtered_result[i] += Edge2->FiftyPrecent[m];
-			}
-		} else {
-			for (m = 0; m < AvgValue; m++) {
-				filtered_result[i] += Edge2->FiftyPrecent[i - m];
-			}
-		}
-
-		Edge2->FiftyPrecent_Filtered[i] = filtered_result[i] / AvgValue;
-		//		printf("### %d %lf\n", i, Edge2->FiftyPrecent_Filtered[i]);
-
-	}
-
-//	for (i = 0; i < SignalLength; i++) {//contacte the end of the previous curve
-//	if(i<AvgValue)
-//		SignalForAvg[i]=Edge2->PrevLastFiftyPrecent[i];
+//int AvgFilter2(Edge2_Struct *Edge2, int SpectrogramTimeBins, int AvgValue) {
+//	float filtered_result[SpectrogramTimeBins];
+//	int SignalLength=SpectrogramTimeBins+AvgValue-1;
+//	//	float SignalForAvg[SignalLength];
 //
-//	else
+//	int i, m;
+//	///CHECK AGAIN THE CASE OF PLUS AT MOTION STRUCT 2
+//	//	for(i=0;i<4;i++)
+//	//		printf("@@   %d %lf\n",i,Edge2->PrevLastFiftyPrecent[i] );
+//
+//	for (i = 0; i < SpectrogramTimeBins; i++) {
+//		filtered_result[i] = 0;
+//		if (i < AvgValue) {
+//			for (m = 0; m < AvgValue - i - 1; m++) {//sum on last AvgValue-i bins in current
+//				filtered_result[i] += Edge2->PrevLastFiftyPrecent[m + i];
+//			}
+//			for (m = 0; m <= i; m++) {	//sum on first i bins in current
+//				filtered_result[i] += Edge2->FiftyPrecent[m];
+//			}
+//		} else {
+//			for (m = 0; m < AvgValue; m++) {
+//				filtered_result[i] += Edge2->FiftyPrecent[i - m];
+//			}
+//		}
+//
+//		Edge2->FiftyPrecent_Filtered[i] = filtered_result[i] / AvgValue;
+//		//		printf("### %d %lf\n", i, Edge2->FiftyPrecent_Filtered[i]);
+//
+//	}
+//
+//	ne10_fir_instance_f32_t SN; // An FIR "instance structure"
+//	ne10_float32_t SignalForAvg[SignalLength];
+//	ne10_float32_t FilteredSignal[SignalLength];
+//	ne10_float32_t coeffs[AvgValue];;//1/AvgValue = 1/5HARD CODED
+//	ne10_float32_t fir_state_neon[AvgValue+SignalLength];
+//	for(i=0;i<AvgValue;i++)
+//		coeffs[i]=1.0/AvgValue;//=1/5=0.2 HARD CODED
+//
+//
+//
+//	for (i = 0; i < SignalLength; i++) {//contacte the end of the previous curve
+//		if(i<AvgValue)
+//			SignalForAvg[i]=Edge2->PrevLastFiftyPrecent[i];
+//
+//		else
 //			SignalForAvg[i]=Edge2->FiftyPrecent[i-AvgValue];
 //	}
 //
+//	ne10_fir_init_float (&SN, AvgValue, coeffs, fir_state_neon, SignalLength);
+//
+//	ne10_fir_float_neon (&SN, SignalForAvg , FilteredSignal ,SignalLength);
+//	for(i=0;i<SpectrogramTimeBins;i++)
+//		//		printf("%d %f\n",i,FilteredSignal[i]);
+//		//	memcpy(Edge2->FiftyPrecent_Filtered, FilteredSignal,sizeof(FilteredSignal));
+//
+//
+//		return 0;
+//}
+
+int AvgFilter(Edge2_Struct *Edge2, SysParams_Struct* SysParams, int IsHilbert) {
+	int SignalLength=SysParams->SpectrogramTimeBins+SysParams->AvgValue-1;
+	int i;
+	ne10_fir_instance_f32_t SN; // An FIR "instance structure"
+	ne10_float32_t SignalForAvg[SignalLength];
+	ne10_float32_t FilteredSignal[SignalLength];
+	ne10_float32_t coeffs[SysParams->AvgValue];;//1/AvgValue = 1/5HARD CODED
+	ne10_float32_t fir_state_neon[SysParams->AvgValue+SignalLength];
+	for(i=0;i<SysParams->AvgValue;i++)
+		coeffs[i]=1.0/SysParams->AvgValue;//=1/5=0.2 HARD CODED
+
+
+	if(IsHilbert==1){//in the ectrogram we contacte the last avgvalues of the previous motionstruct to the current
+
+		for (i = 0; i <= SignalLength; i++) {//contacte the end of the previous curve
+			if(i<SysParams->AvgValue-1)
+				SignalForAvg[i]=Edge2->PrevLastFiftyPrecent[i];
+
+			else
+				SignalForAvg[i]=Edge2->FiftyPrecent[i-SysParams->AvgValue+1];
+		}
+
+		ne10_fir_init_float (&SN, SysParams->AvgValue, coeffs, fir_state_neon, SignalLength);
+
+		ne10_fir_float_neon (&SN, SignalForAvg , FilteredSignal,SignalLength);
+		memcpy(Edge2->FiftyPrecent_Filtered,FilteredSignal+(SysParams->AvgValue-1),(SysParams->SpectrogramTimeBins)*sizeof(ne10_float32_t));
+		//		for(i=0;i<SysParams->SpectrogramTimeBins;i++)
+		//			printf("hilbert %d %f\n",i,Edge2->FiftyPrecent_Filtered[i]);
+	}
+
+	else{//IsHilbert==0
+		ne10_fir_init_float (&SN, SysParams->AvgValue, coeffs, fir_state_neon, SysParams->SpectrogramTimeBins);
+		ne10_fir_float_neon (&SN, Edge2->FiftyPrecent , Edge2->FiftyPrecent_Filtered ,SysParams->SpectrogramTimeBins);
+		//		for(i=0;i<SysParams->SpectrogramTimeBins;i++)
+		//			printf("%d %f\n",i,Edge2->FiftyPrecent_Filtered[i]);
+	}
+
 	return 0;
 }
 
@@ -2898,8 +3168,9 @@ int CalcCurves2(float* Pxx2[], float* Pxx2_dB[], float *T2_dB,
 	int k, i, MaxPxx2_dB_idx, idx_FreqAboveThresh, idx_FreqBins_Spectogram = 0,
 			AllFreqAboveThresh[SysParams->SpectrogramFreqBins],
 			Freq_50_PrecentIdx;
+	int IsHilbert;
 	int MedianType;
-	int AvgValue = 5;
+	//	int AvgValue = 5;
 	float freq_increment = 1.256281407035176;	//=(Fs/LengthOfDFT);
 	float SpectrogramFreqBinsInHz[SysParams->DFTLengthForSpectrogram],
 	MaxPxx2_dB, Energy_50_Precent;
@@ -2963,7 +3234,7 @@ int CalcCurves2(float* Pxx2[], float* Pxx2_dB[], float *T2_dB,
 		}
 
 		Energy_50_Precent = (Edge2->PeakEnergy[i] + Edge2->maxFreqEnergy[i])
-																																												/ 2;
+																																																																										/ 2;
 
 		for (k = Edge2->maxFreqIdxs[i]; k > Edge2->maxPeakIdxs[i]; k--) {//search backwards the first freq index that passes Energy_50_Precent
 			if (Pxx2_dB[k][i] > Energy_50_Precent) {
@@ -2993,10 +3264,140 @@ int CalcCurves2(float* Pxx2[], float* Pxx2_dB[], float *T2_dB,
 		}
 
 	}
-	AvgFilter2(Edge2, SysParams->SpectrogramTimeBins, AvgValue);//Average filter of the FiftyPrecent(blue) curve with AvgValue=5
+	IsHilbert=0;
+	AvgFilter(Edge2, SysParams,IsHilbert);//Average filter of the FiftyPrecent(blue) curve with AvgValue=5
 
 	return 0;
 }
+
+
+
+
+
+int CalcCurves3(float* Pxx2[], float* Pxx2_dB[], float *T2_dB,
+		Edge2_Struct *Edge2, SysParams_Struct* SysParams) {	//CalcRedStarsCurve3 in Matlab
+	int k, i, MaxPxx2_dB_idx, idx_FreqAboveThresh, idx_FreqBins_Spectogram = 0,
+			AllFreqAboveThresh[SysParams->SpectrogramFreqBins],
+			Freq_50_PrecentIdx;
+	int IsHilbert;
+	int MedianType;
+	//	int AvgValue = 5;
+	float freq_increment = 1.256281407035176;	//=(Fs/LengthOfDFT);
+	float SpectrogramFreqBinsInHz[SysParams->DFTLengthForSpectrogram],
+	MaxPxx2_dB, Energy_50_Precent;
+	for (float i = 0; i < SysParams->SpectrogramFreqBins; i++) {//create the frequency vector inHz
+		SpectrogramFreqBinsInHz[idx_FreqBins_Spectogram] = i * freq_increment;
+		idx_FreqBins_Spectogram += 1;
+	}
+	//	memset(Edge2->Peak,0,174*sizeof(float));//set 0 the first MedianValue/2 and last MedianValue/2-1 for the inital conditions
+
+	for (i = 0; i < SysParams->SpectrogramTimeBins; i++) {
+
+		idx_FreqAboveThresh = 0;
+		MaxPxx2_dB = Pxx2_dB[SysParams->Fmin_bin][i];
+		MaxPxx2_dB_idx = SysParams->Fmin_bin;
+		//		MaxPxx2_dB=Fmin_bin;
+		//		SumEnergy=0;
+		for (k = SysParams->Fmin_bin;
+				k < SysParams->SpectrogramFreqBins - SysParams->noiseFreqBins;
+				k++) {//do the work in frequency range [Fmin_bin,SpectrogramFreqBins-noiseFreqBins]
+			if (Pxx2_dB[k][i] > *T2_dB) {
+				AllFreqAboveThresh[idx_FreqAboveThresh] = k;
+				//				SumEnergy+=Pxx2[k][i];
+				idx_FreqAboveThresh += 1;
+			}
+
+			if (Pxx2_dB[k][i] > MaxPxx2_dB) {		//find MaxPxx2_dB
+				MaxPxx2_dB = Pxx2_dB[k][i];
+				MaxPxx2_dB_idx = k;
+			}
+		}
+
+		if (idx_FreqAboveThresh > 0) {//there were frequencies above the threshold
+//			Edge2->maxFreqIdxs[i] = AllFreqAboveThresh[idx_FreqAboveThresh - 1];
+//			Edge2->maxFreqEnergy[i] =
+//					Pxx2_dB[AllFreqAboveThresh[idx_FreqAboveThresh - 1]][i];
+//			Edge2->PeakEnergy[i] = MaxPxx2_dB;
+//			Edge2->maxPeakIdxs[i] = MaxPxx2_dB_idx;
+//			Edge2->Fmax[i] =
+//					SpectrogramFreqBinsInHz[AllFreqAboveThresh[idx_FreqAboveThresh
+//															   - 1]];
+			if (SysParams->truncate == 0)//in this case there is zero-pad at the beginning
+				Edge2->Peak[i + SysParams->MedianValue / 2] =
+						SpectrogramFreqBinsInHz[MaxPxx2_dB_idx];//first MedianValue/2(=10) bins are 0 for the inital sates of the median filter
+			else
+				//there is no-zero padding
+				Edge2->Peak[i] = SpectrogramFreqBinsInHz[MaxPxx2_dB_idx];
+		} else {		//take defaultes
+//			Edge2->maxFreqIdxs[i] = SysParams->Fmin_bin;
+//			Edge2->maxFreqEnergy[i] = Pxx2_dB[SysParams->Fmin_bin][i];
+//			Edge2->PeakEnergy[i] = Pxx2_dB[SysParams->Fmin_bin][i];
+//			Edge2->maxPeakIdxs[i] = SysParams->Fmin_bin;
+//			Edge2->Fmax[i] = SpectrogramFreqBinsInHz[SysParams->Fmin_bin];
+
+			if (SysParams->truncate == 0)//in this case there is zero-pad at the beginning
+				Edge2->Peak[i + SysParams->MedianValue / 2] =
+						SpectrogramFreqBinsInHz[SysParams->Fmin_bin];
+			else
+				//there is no-zero padding
+				Edge2->Peak[i] = SpectrogramFreqBinsInHz[SysParams->Fmin_bin];
+		}
+
+//		Energy_50_Precent = (Edge2->PeakEnergy[i] + Edge2->maxFreqEnergy[i])
+//																																																																										/ 2;
+
+//		for (k = Edge2->maxFreqIdxs[i]; k > Edge2->maxPeakIdxs[i]; k--) {//search backwards the first freq index that passes Energy_50_Precent
+//			if (Pxx2_dB[k][i] > Energy_50_Precent) {
+//				break;
+//			}
+//		}
+//		Freq_50_PrecentIdx = k;
+//		//****think about the case: if ~isempty(Freq_50_PrecentIdx)*****
+//		Edge2->FiftyPrecent[i] = SpectrogramFreqBinsInHz[Freq_50_PrecentIdx];
+//		Edge2->FiftyPrecentIdxs[i] = Freq_50_PrecentIdx;
+
+		//							 printf("!!) %d %lf\n",i,Edge2->FiftyPrecent[i] );
+
+	}
+	//	MedianFilter2(Edge2, SysParams->SpectrogramTimeBins, SysParams->MedianValue,
+	//			SysParams->truncate);//median filter on the peak(black) curve with MedianValue=20
+	MedianType=0;//ZERPOAD
+	MedianFilter(Edge2, SysParams,
+			MedianType);//median filter on the peak(black) curve with MedianValue=20, MedianType=0 ZERPOAD,MedianType=1 TRUNCATE
+//	for (i = 0; i < SysParams->SpectrogramTimeBins; i++) {
+//
+//		if (fabs(Edge2->Peak_Filtered[i])
+//				<= fabs(SpectrogramFreqBinsInHz[SysParams->Fmin_bin])) {// if the peak has no energy, give the 50% also the same energy
+//			Edge2->FiftyPrecent[i] =
+//					SpectrogramFreqBinsInHz[SysParams->Fmin_bin];
+//			Edge2->FiftyPrecentIdxs[i] = SysParams->Fmin_bin;
+//		}
+//
+//	}
+//	IsHilbert=0;
+//	AvgFilter(Edge2, SysParams,IsHilbert);//Average filter of the FiftyPrecent(blue) curve with AvgValue=5
+
+	return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 int MaxOfArr(float *Arr, int *MaxIdx, float *MaxValue, int Length) {
 	int i;

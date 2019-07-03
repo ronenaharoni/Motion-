@@ -83,11 +83,11 @@ int fir(ne10_float32_t src [], int length, ne10_float32_t coeffs [], ne10_float3
     ne10_fir_instance_f32_t cfg;    // An FIR "instance structure"
 
     // Initialize Ne10, using hardware auto-detection to set library function pointers
-    if (ne10_init() != NE10_OK)
-    {
-        fprintf(stderr, "Failed to initialise Ne10.\n");
-        return 1;
-    }
+//    if (ne10_init() != NE10_OK)
+//    {
+//        fprintf(stderr, "Failed to initialise Ne10.\n");
+//        return 1;
+//    }
 
     // Prepare the FIR instance structure, storing `NUMTAPS`, `coeffs`, and `st` within
     // it, and clearing the state buffer. (For constant parameters, this process can
@@ -134,51 +134,51 @@ ne10_float32_t fir_coeffs2 [NUMTAPS] = {0.000408,-0.041049,0.0086493,0.22937,-0.
 ne10_float32_t fir_coeffs[NUMTAPS];
 
 #endif
-//
-//int main(void)
-//{
-//
-//
-//	char FilePath[MAX_FILE_PATH];
-//	char OutFilePath[MAX_FILE_PATH];
-//
-//#ifdef __ARM
-//	int i;
-//	for ( i = 0 ; i < NUMTAPS; i++)
-//	{
-//		fir_coeffs[i] = fir_coeffs2[NUMTAPS-i-1];
-//	}
-//#endif
-//
-////	covar_opencv();
-////	fir(fft_input,ROW_LEN,fir_coeffs,FIR_GAIN);
-////covariance_matrix_main();
-////	test_fft_r2c_1d_float32_performance();
-//
-///*****  Working implementations *****/
-//#ifdef __ARM
-//	// from libNE10
-//	test_fir();
-//#endif
-//	// from opencv library - covariance
-//
-//
-////	test_fft();//me add
-//
-//
-//
-//	opencv_tests();
-//	/* from gsl library */
-//	sprintf (FilePath,"%s/%s",INPUTS_BASE_DIR,INPUT_MEDIAN1_FILE);
-//	sprintf (OutFilePath,"%s/%s",OUTPUTS_BASE_DIR,OUTPUT_MEDIAN1_FILE);
-//	median_main(FilePath,OutFilePath);
-////	sprintf (FilePath,"%s/%s",INPUTS_BASE_DIR,INPUT_MEDIAN2_FILE);
-////	sprintf (OutFilePath,"%s/%s",OUTPUTS_BASE_DIR,OUTPUT_MEDIAN2_FILE);
-////	median_main(FilePath,OutFilePath);
-//	// from FFTW library
-//	test_fft();
-//
-//	return 0;
-//}
 
+int main888(void)
+{
+
+
+	char FilePath[MAX_FILE_PATH];
+	char OutFilePath[MAX_FILE_PATH];
+
+#ifdef __ARM
+	int i;
+	for ( i = 0 ; i < NUMTAPS; i++)
+	{
+		fir_coeffs[i] = fir_coeffs2[NUMTAPS-i-1];
+	}
+#endif
+
+//	covar_opencv();
+//	fir(fft_input,ROW_LEN,fir_coeffs,FIR_GAIN);
+//covariance_matrix_main();
+//	test_fft_r2c_1d_float32_performance();
+
+/*****  Working implementations *****/
+#ifdef __ARM
+	// from libNE10
+	test_fir();
+#endif
+	// from opencv library - covariance
+
+
+//	test_fft();//me add
+
+
+
+	opencv_tests();
+	/* from gsl library */
+	sprintf (FilePath,"%s/%s",INPUTS_BASE_DIR,INPUT_MEDIAN1_FILE);
+	sprintf (OutFilePath,"%s/%s",OUTPUTS_BASE_DIR,OUTPUT_MEDIAN1_FILE);
+	median_main(FilePath,OutFilePath);
+//	sprintf (FilePath,"%s/%s",INPUTS_BASE_DIR,INPUT_MEDIAN2_FILE);
+//	sprintf (OutFilePath,"%s/%s",OUTPUTS_BASE_DIR,OUTPUT_MEDIAN2_FILE);
+//	median_main(FilePath,OutFilePath);
+	// from FFTW library
+	test_fft();
+
+	return 0;
+}
+//
 

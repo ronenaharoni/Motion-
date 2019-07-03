@@ -1,1 +1,0 @@
-seatest.d: ../seatest.c

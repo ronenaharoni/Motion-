@@ -209,6 +209,7 @@ int FFT(float* fft_in, float* SpectrogramPerRangeBin[], int FFT_Length,int CurrT
 
 void MemoryAllocation(Edge2_Struct* Edge2_1,Edge2_Struct* Edge2_2,Edge2_Struct* Edge2_Plus_1,Edge2_Struct* Edge2_Minus_1,Edge2_Struct* Edge2_Plus_2,Edge2_Struct* Edge2_Minus_2,SysParams_Struct *SysParams);
 void FreeMemory(Edge2_Struct* Edge2_1,Edge2_Struct* Edge2_2,Edge2_Struct* Edge2_Plus_1,Edge2_Struct* Edge2_Minus_1,Edge2_Struct* Edge2_Plus_2,Edge2_Struct* Edge2_Minus_2,Motion_Struct2 *UnitedMotionStruct);
+int MatchedFilter(float* Mscan[], SysParams_Struct* SysParams);
 int MacthedFilter2(float* Mscan[],SysParams_Struct* SysParams);
 int SlowProcessing2(float* Mscan[],float* Mscan_PostProcess[], SysParams_Struct* SysParams);
 int SlowProcessingHilbert(_Complex float* Mscan[],_Complex float* Mscan_PostProcess[], SysParams_Struct* SysParams);
@@ -224,11 +225,18 @@ int CurveLength2(Motion_Struct2 *MotionStruct,Edge2_Struct* Edge2,SysParams_Stru
 int MotionCurveExtraction2(Motion_Struct2* MotionStruct,float* Mscan[],float* Mscan_abs_FFT[],float* Pxx2_Hilbert[],float* Pxx2[],float* Pxx2_dB[],Edge2_Struct* Edge2,Edge2_Struct* Edge2_Plus,Edge2_Struct* Edge2_Minus,SysParams_Struct* SysParams);
 int FeatureExtractionBasedCurves2(Motion_Struct2* MotionStruct,AllFeatures_Struct* FeatureSet,SysParams_Struct* SysParams);
 int CalcCurves2(float* Pxx2[],float* Pxx2_dB[],float *T2_dB,Edge2_Struct *Edge2,SysParams_Struct* SysParams);
+int CalcCurves3(float* Pxx2[],float* Pxx2_dB[],float *T2_dB,Edge2_Struct *Edge2,SysParams_Struct* SysParams);
+
 int HilbertSpectrogram2(float* Pxx2_Hilbert[],float* Pxx2_dB[],float *T2_dB,float* Mscan[],int p1,Edge2_Struct *Edge2_Plus,Edge2_Struct * Edge2_Minus,SysParams_Struct* SysParams);
+
+int HilbertSpectrogram3(float* Pxx2_Hilbert[],float* Pxx2[], float* Pxx2_dB[], float *T2_dB,float* Mscan[], int p1, Edge2_Struct *Edge2_Plus,Edge2_Struct * Edge2_Minus,Edge2_Struct * Edge2, SysParams_Struct* SysParams);
+
 int CalcCurvesHilbert2(Pxx2_Plus_Struct *Pxx2_Plus,Pxx2_Minus_Struct* Pxx2_Minus,Edge2_Struct* Edge2_Plus,Edge2_Struct* Edge2_Minus,SysParams_Struct* SysParams);
 int MedianFilter(Edge2_Struct *Edge2, SysParams_Struct* SysParams,int MedianType);
 int MedianFilter2(Edge2_Struct *Edge2,int SpectrogramTimeBins, int MedianValue, int truncate);//Filter the black curve (peak curve)
 int read_data_from_file(FILE *fp_read ,int Nscans,int Nbins,float* RespMscan_flat);
+int AvgFilter(Edge2_Struct *Edge2,SysParams_Struct* SysParams, int IsHilbert);
+
 int AvgFilter2(Edge2_Struct *Edge2,int SpectrogramTimeBins,int AvgValue);
 int ExtractFeatures2(Motion_Struct2* MotionStruct,AllFeatures_Struct* FeatureSet,int Type,SysParams_Struct *SysParams);
 int MedianFilterFor50Precent(Edge2_Struct *Edge2, Motion_Struct2 *MotionStruct, float *Edge2_50Precent_MedianFiltered,int MedianValue);
