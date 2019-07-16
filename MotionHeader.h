@@ -133,22 +133,7 @@ typedef struct {
 } Event_Struct;
 
 
-typedef struct {
-	Edge_Struct* Edge2;
-	Edge_Struct* Edge2_Plus;
-	Edge_Struct* Edge2_Minus;
-	Event_Struct *EventStruct;
-	int topMaxFreq;
-	int minEventDuration;
-	int Fmin_bin;
-	int SpectrogramTimeBins;
-	int SpectrogramFreqBins;
-	int EventPlusPassEvent;
-	int EventMinusPassEvent;
-	float MinFreq;
-	int num_of_features;
-}
-Motion_Struct;
+
 
 
 typedef struct {
@@ -160,15 +145,15 @@ typedef struct {
 	int EventMinusPassEvent;
 
 }
-Motion_Struct2;
+Motion_Struct;
 
 
 
 typedef struct {
-	Motion_Struct2* MotionStruct0;
-	Motion_Struct2* MotionStruct1;
-	Motion_Struct2* MotionStruct2;
-	Motion_Struct2* UnitedMotionStruct;
+	Motion_Struct* MotionStruct0;
+	Motion_Struct* MotionStruct1;
+	Motion_Struct* MotionStruct2;
+	Motion_Struct* UnitedMotionStruct;
 
 }
 AllMotion_Structs;
@@ -228,11 +213,11 @@ int SVM_Params_Import(SVM_Struct* SVM_Model);
 int CreateFFTPlans(SysParams_Struct *SysParams);
 int CreateEdges(SysParams_Struct* SysParams);
 
-int MotionHandler(float* Mscan1[],float* Mscan2[],SysParams_Struct* SysParams,Tree_Struct** All_Trees,SVM_Struct* SVM_Model,RF_Struct* RF_Model,Motion_Struct2* MotionStruct0);
+int MotionHandler(float* Mscan1[],float* Mscan2[],SysParams_Struct* SysParams,Tree_Struct** All_Trees,SVM_Struct* SVM_Model,RF_Struct* RF_Model,Motion_Struct* MotionStruct0);
 int FFT(float* fft_in, float* SpectrogramPerRangeBin[], int FFT_Length,int CurrTimeBin);
 
 void MemoryAllocation(Edge2_Struct* Edge2_1,Edge2_Struct* Edge2_2,Edge2_Struct* Edge2_Plus_1,Edge2_Struct* Edge2_Minus_1,Edge2_Struct* Edge2_Plus_2,Edge2_Struct* Edge2_Minus_2,SysParams_Struct *SysParams);
-void FreeMemory(Edge2_Struct* Edge2_1,Edge2_Struct* Edge2_2,Edge2_Struct* Edge2_Plus_1,Edge2_Struct* Edge2_Minus_1,Edge2_Struct* Edge2_Plus_2,Edge2_Struct* Edge2_Minus_2,Motion_Struct2 *UnitedMotionStruct);
+void FreeMemory(Edge2_Struct* Edge2_1,Edge2_Struct* Edge2_2,Edge2_Struct* Edge2_Plus_1,Edge2_Struct* Edge2_Minus_1,Edge2_Struct* Edge2_Plus_2,Edge2_Struct* Edge2_Minus_2,Motion_Struct *UnitedMotionStruct);
 int MatchedFilter(float* Mscan[], SysParams_Struct* SysParams);
 int MacthedFilter2(float* Mscan[],SysParams_Struct* SysParams);
 int SlowProcessing2(float* Mscan[],float* Mscan_PostProcess[], SysParams_Struct* SysParams);
@@ -242,21 +227,17 @@ int NotchFilter2(float* Mscan[],SysParams_Struct* SysParams);
 int NotchFilterHilbert(_Complex float* Mscan[], SysParams_Struct* SysParams);
 int AbsOfFFT(float* Mscan[], float* Mscan_abs_FFT[],SysParams_Struct* SysParams);
 
-int AbsOfFFT2(float* Mscan[], float* Mscan_abs_FFT[],SysParams_Struct* SysParams);
 int GET_ROI(float *Mscan_abs_FFT[], SysParams_Struct* SysParams, int *p1);
 
 int GET_ROI2(float *Mscan_abs_FFT[],SysParams_Struct* SysParams,int *p1);
 int Spectrogram2(float* Pxx2[],float* Pxx2_dB[],float *T2_dB,float* Mscan[],int p1,SysParams_Struct* SysParams);
 int Hilbert(float* Mscan[], _Complex float* MscanIQ[], SysParams_Struct* SysParams);
-int CurveLength(Motion_Struct2 *MotionStruct,SysParams_Struct *SysParams);
+int CurveLength(Motion_Struct *MotionStruct,SysParams_Struct *SysParams);
 
-int CurveLength2(Motion_Struct2 *MotionStruct,Edge2_Struct* Edge2,SysParams_Struct *SysParams);
-int MotionCurveExtraction2(Motion_Struct2* MotionStruct,float* Mscan[],float* Mscan_abs_FFT[],float* Pxx2_Hilbert[],float* Pxx2[],float* Pxx2_dB[],Edge2_Struct* Edge2,Edge2_Struct* Edge2_Plus,Edge2_Struct* Edge2_Minus,SysParams_Struct* SysParams);
-int FeatureExtractionBasedCurves2(Motion_Struct2* MotionStruct,AllFeatures_Struct* FeatureSet,SysParams_Struct* SysParams);
+int MotionCurveExtraction2(Motion_Struct* MotionStruct,float* Mscan[],float* Mscan_abs_FFT[],float* Pxx2_Hilbert[],float* Pxx2[],float* Pxx2_dB[],Edge2_Struct* Edge2,Edge2_Struct* Edge2_Plus,Edge2_Struct* Edge2_Minus,SysParams_Struct* SysParams);
+int FeatureExtractionBasedCurves2(Motion_Struct* MotionStruct,AllFeatures_Struct* FeatureSet,SysParams_Struct* SysParams);
 int CalcCurves2(float* Pxx2[],float* Pxx2_dB[],float *T2_dB,Edge2_Struct *Edge2,SysParams_Struct* SysParams);
-int CalcCurves3(float* Pxx2[],float* Pxx2_dB[],float *T2_dB,Edge2_Struct *Edge2,SysParams_Struct* SysParams);
 
-int HilbertSpectrogram2(float* Pxx2_Hilbert[],float* Pxx2_dB[],float *T2_dB,float* Mscan[],int p1,Edge2_Struct *Edge2_Plus,Edge2_Struct * Edge2_Minus,SysParams_Struct* SysParams);
 
 int HilbertSpectrogram3(float* Pxx2_Hilbert[],float* Pxx2[], float* Pxx2_dB[], float *T2_dB,float* Mscan[], int p1, Edge2_Struct *Edge2_Plus,Edge2_Struct * Edge2_Minus,Edge2_Struct * Edge2, SysParams_Struct* SysParams);
 int HilbertSpectrogram4(float* Pxx2_Hilbert[],float* Pxx2[], float* Pxx2_dB[], float *T2_dB,float* Mscan[], int p1, Edge2_Struct *Edge2_Plus,Edge2_Struct * Edge2_Minus,Edge2_Struct * Edge2, SysParams_Struct* SysParams);
@@ -268,18 +249,18 @@ int read_data_from_file(FILE *fp_read ,int Nscans,int Nbins,float* RespMscan_fla
 int AvgFilter(Edge2_Struct *Edge2,SysParams_Struct* SysParams, int IsHilbert);
 
 int AvgFilter2(Edge2_Struct *Edge2,int SpectrogramTimeBins,int AvgValue);
-int ExtractFeatures2(Motion_Struct2* MotionStruct,AllFeatures_Struct* FeatureSet,int Type,SysParams_Struct *SysParams);
-int MedianFilterFor50Precent(Edge2_Struct *Edge2, Motion_Struct2 *MotionStruct, float *Edge2_50Precent_MedianFiltered,int MedianValue);
-float MedianFilterFor50Precent2(Edge2_Struct *Edge2, Motion_Struct2 *MotionStruct, float *Edge2_50Precent_MedianFiltered,int MedianValue);
+int ExtractFeatures2(Motion_Struct* MotionStruct,AllFeatures_Struct* FeatureSet,int Type,SysParams_Struct *SysParams);
+int MedianFilterFor50Precent(Edge2_Struct *Edge2, Motion_Struct *MotionStruct, float *Edge2_50Precent_MedianFiltered,int MedianValue);
+float MedianFilterFor50Precent2(Edge2_Struct *Edge2, Motion_Struct *MotionStruct, float *Edge2_50Precent_MedianFiltered,int MedianValue);
 int MaxOfArr(float *Arr,int *MaxIdx, float *MaxValue, int Length);
-int PolynomialFeatures2(Edge2_Struct* Edge2,Motion_Struct2 *MotionStruct,Features_Struct *Features);
-int Feature42(Motion_Struct2* MotionStruct, AllFeatures_Struct* FeatureSet,SysParams_Struct* SysParams);
-int Feature42_2(Motion_Struct2* MotionStruct,AllFeatures_Struct* FeatureSet);
+int PolynomialFeatures2(Edge2_Struct* Edge2,Motion_Struct *MotionStruct,Features_Struct *Features);
+int Feature42(Motion_Struct* MotionStruct, AllFeatures_Struct* FeatureSet,SysParams_Struct* SysParams);
+int Feature42_2(Motion_Struct* MotionStruct,AllFeatures_Struct* FeatureSet);
 int SNRFeature(Edge2_Struct* Edge2_Plus,Edge2_Struct* Edge2_Minus,AllFeatures_Struct *Featureset,SysParams_Struct *SysParams);
 int RandomForrestClassifier(AllFeatures_Struct* FeatureSet,Tree_Struct** All_Trees,float * MotionDistribution,RF_Struct* RF_Model);
 int ClassifierCorrection(AllFeatures_Struct* FeatureSet,float * MotionDistribution, int *y_hat_M,SVM_Struct* SVM_Model);
 int SVMClassifier(AllFeatures_Struct* FeatureSet,float * MotionDistribution, int *y_hat_M,SVM_Struct *SVM_Model);
-int GapInterpolation2( Motion_Struct2 *MotionStruct0,Motion_Struct2 *MotionStruct1,Motion_Struct2 *MotionStruct2,Motion_Struct2 *UnitedMotionStruct,SysParams_Struct* SysParams);
+int GapInterpolation2( Motion_Struct *MotionStruct0,Motion_Struct *MotionStruct1,Motion_Struct *MotionStruct2,Motion_Struct *UnitedMotionStruct,SysParams_Struct* SysParams);
 int GapInterpolation_2Curves(float* LeftCurve, float* RightCurve,
 		float *IntrpolatedCurve, SysParams_Struct* SysParams, int FirstGap,int isHilbert);
 float Max(float Val1, float Val2);
@@ -293,4 +274,5 @@ int SavePxx2ToCsv(float* Pxx2[],
 
 int hilbert(float *signal, int N, float _Complex *output);
 int Hilbert2(float* Mscan[],_Complex float* MscanIQ[],int Nbins,int Nscans);
-
+int FreeMemoryEdeges(Edge2_Struct* Edge2_0,
+		Edge2_Struct* Edge2_Plus_0, Edge2_Struct* Edge2_Minus_0);

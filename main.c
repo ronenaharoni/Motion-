@@ -81,10 +81,7 @@ int main( void ){
 		SysParams.Rbin_m[i]=SysParams.Rstart_corrected+delta_R*i;
 	}
 
-	CreateFFTPlans(&SysParams);
-
-	Motion_Struct2 MotionStruct0;
-
+	Motion_Struct MotionStruct0;
 
 	Edge2_Struct Edge2_0;
 	Edge2_Struct Edge2_Plus_0;
@@ -109,9 +106,6 @@ int main( void ){
 	/////MotioStruct0 Preparation/////
 	SysParams.SpectrogramTimeBins=SysParams.SpectrogramTimeBinsSingleMotion;
 
-	//	Edge2_0.FiftyPrecent_Filtered=(float *)malloc(SysParams.SpectrogramTimeBins * sizeof(float));
-	//	Edge2_0.Fmax=(float *)malloc(SysParams.SpectrogramTimeBins * sizeof(float));
-	//	Edge2_0.PrevLastFiftyPrecent=(float *)malloc((SysParams.AvgValue-1) * sizeof(float));
 
 	if(SysParams.truncate==1){// Computes medians of smaller segments as it reaches the signal edges. no zeropadding at the end and begining
 		Edge2_0.Peak=(float *)malloc((SysParams.SpectrogramTimeBins) * sizeof(float));
@@ -151,11 +145,12 @@ int main( void ){
 	}
 
 
-
 	MotionStruct0.Edge2=&Edge2_0;
 	MotionStruct0.Edge2_Plus=&Edge2_Plus_0;
 	MotionStruct0.Edge2_Minus=&Edge2_Minus_0;
 
+
+	CreateFFTPlans(&SysParams);
 	RF_Params_Import(NumOfTrees, NumOfFeatures,All_Trees,&RF_Model);
 	SVM_Params_Import(&SVM_Model);
 
@@ -177,16 +172,13 @@ int main( void ){
 
 
 
-
-
-
 		read_data_from_file(MscanFile1,SysParams.Nscans,SysParams.Nbins,Mscan_flat);//get the MSCAN in flat form
+
 		for ( i=0;i<SysParams.Nscans;i++)
 		{//get the  MSCAN from flat
 			for ( j=0;j<SysParams.Nbins;j++)
 			{
 				Mscan0[i][j]=Mscan_flat[i*SysParams.Nbins+j];
-				//			Mscan_old[i][j]=Mscan_flat[i*Nbins+j];
 			}
 		}
 
@@ -196,7 +188,6 @@ int main( void ){
 			for ( j=0;j<SysParams.Nbins;j++)
 			{
 				Mscan1[i][j]=Mscan_flat[i*SysParams.Nbins+j];
-				//			Mscan_old[i][j]=Mscan_flat[i*Nbins+j];
 			}
 		}
 
@@ -259,6 +250,10 @@ int main( void ){
 	fftwf_destroy_plan(SysParams.FFT_HilbertSpectrogram);
 	fftwf_destroy_plan(SysParams.FFT_ABS);
 	ne10_fft_destroy_r2c_float32(SysParams.FFT_Feature42);
+
+
+	FreeMemoryEdeges(&Edge2_0,
+			&Edge2_Plus_0,&Edge2_Minus_0);
 
 	return 0;
 }
@@ -445,20 +440,48 @@ int CreateFFTPlans(SysParams_Struct *SysParams){
 }
 
 
-//int Create2DArrays(SysParams_Struct *SysParams){
-//
-//	for (i = 0; i < SysParams->DFTLengthForPSD; i++) {
-//		Mscan_abs_FFT[i] = (float *) malloc(SysParams->Nbins * sizeof(float));
-//	}
-//	for (i = 0; i < SysParams->SpectrogramFreqBins; i++) {
-//		Pxx2_dB[i] = (float *) malloc(
-//				SysParams.SpectrogramTimeBinsSingleMotion * sizeof(float));
-//		Pxx2[i] = (float *) malloc(
-//				SysParams->SpectrogramTimeBins * sizeof(float));
-//	}
-//	for (i = 0; i < SysParams->SpectrogramFreqBinsHilbert; i++) {
-//
-//		Pxx2_Hilbert[i] = (float *) malloc(
-//				SysParams->SpectrogramTimeBins * sizeof(float));
-//	}
-//}
+int FreeMemoryEdeges(Edge2_Struct* Edge2_0,
+		Edge2_Struct* Edge2_Plus_0, Edge2_Struct* Edge2_Minus_0){
+free(Edge2_0->FiftyPrecent);
+	free(Edge2_0->FiftyPrecent_Filtered);
+	free(Edge2_0->Fmax);
+	free(Edge2_0->PeakEnergy);
+	free(Edge2_0->PeakEnergy_PM);
+	free(Edge2_0->maxFreqEnergy);
+	free(Edge2_0->FreqBins);
+	free(Edge2_0->maxPeakIdxs);
+	free(Edge2_0->maxFreqIdxs);
+	free(Edge2_0->FiftyPrecentIdxs);
+	free(Edge2_0->PrevLastFiftyPrecent);
+	free(Edge2_0->Peak);
+	free(Edge2_0->Peak_Filtered);
+
+	free(Edge2_Plus_0->FiftyPrecent);
+	free(Edge2_Plus_0->FiftyPrecent_Filtered);
+	free(Edge2_Plus_0->Fmax);
+	free(Edge2_Plus_0->PeakEnergy);
+	free(Edge2_Plus_0->PeakEnergy_PM);
+	free(Edge2_Plus_0->maxFreqEnergy);
+	free(Edge2_Plus_0->FreqBins);
+	free(Edge2_Plus_0->maxPeakIdxs);
+	free(Edge2_Plus_0->maxFreqIdxs);
+	free(Edge2_Plus_0->FiftyPrecentIdxs);
+	free(Edge2_Plus_0->PrevLastFiftyPrecent);
+	free(Edge2_Plus_0->Peak);
+	free(Edge2_Plus_0->Peak_Filtered);
+
+	free(Edge2_Minus_0->FiftyPrecent);
+	free(Edge2_Minus_0->FiftyPrecent_Filtered);
+	free(Edge2_Minus_0->Fmax);
+	free(Edge2_Minus_0->PeakEnergy);
+	free(Edge2_Minus_0->PeakEnergy_PM);
+	free(Edge2_Minus_0->maxFreqEnergy);
+	free(Edge2_Minus_0->FreqBins);
+	free(Edge2_Minus_0->maxPeakIdxs);
+	free(Edge2_Minus_0->maxFreqIdxs);
+	free(Edge2_Minus_0->FiftyPrecentIdxs);
+	free(Edge2_Minus_0->PrevLastFiftyPrecent);
+	free(Edge2_Minus_0->Peak);
+	free(Edge2_Minus_0->Peak_Filtered);
+	return 0;
+}

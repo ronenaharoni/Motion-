@@ -29,7 +29,7 @@ float f1 = 0;
 ///ADD MSAN 1 AND MSCAN 2 AND AT THE END SAVE MOTION2 AT MOTION0
 int MotionHandler(float* Mscan1[], float* Mscan2[], SysParams_Struct* SysParams,
 		Tree_Struct** All_Trees, SVM_Struct* SVM_Model, RF_Struct* RF_Model,
-		Motion_Struct2* MotionStruct0) {
+		Motion_Struct* MotionStruct0) {
 	int i;
 	int y_hat_M;
 	float* Mscan_abs_FFT[SysParams->DFTLengthForPSD];
@@ -38,9 +38,9 @@ int MotionHandler(float* Mscan1[], float* Mscan2[], SysParams_Struct* SysParams,
 	float * Pxx2_Hilbert[SysParams->SpectrogramFreqBinsHilbert];
 	float MotionDistribution[SysParams->NumOfClasses]; //=4
 
-	Motion_Struct2 MotionStruct1;
-	Motion_Struct2 MotionStruct2;
-	Motion_Struct2 UnitedMotionStruct;
+	Motion_Struct MotionStruct1;
+	Motion_Struct MotionStruct2;
+	Motion_Struct UnitedMotionStruct;
 
 	Edge2_Struct Edge2_1;
 	Edge2_Struct Edge2_Plus_1;
@@ -309,9 +309,9 @@ int MotionHandler(float* Mscan1[], float* Mscan2[], SysParams_Struct* SysParams,
 	return 0;
 }
 
-int GapInterpolation2(Motion_Struct2 *MotionStruct0,
-		Motion_Struct2 *MotionStruct1, Motion_Struct2 *MotionStruct2,
-		Motion_Struct2 *UnitedMotionStruct, SysParams_Struct* SysParams) {
+int GapInterpolation2(Motion_Struct *MotionStruct0,
+		Motion_Struct *MotionStruct1, Motion_Struct *MotionStruct2,
+		Motion_Struct *UnitedMotionStruct, SysParams_Struct* SysParams) {
 	int i, FirstGap;
 	if (SysParams->FirstTimeMotion == 1) {	//there are only 2 motion structs
 		FirstGap = 1;
@@ -958,7 +958,7 @@ int cmpfunc_for_signal(const void * a, const void * b) {//Comparator function fo
 	return (*(float*) b < *(float*) a) - (*(float*) b > *(float*) a);
 }
 
-int MotionCurveExtraction2(Motion_Struct2* MotionStruct, float* Mscan[],
+int MotionCurveExtraction2(Motion_Struct* MotionStruct, float* Mscan[],
 		float* Mscan_abs_FFT[], float* Pxx2_Hilbert[], float* Pxx2[],
 		float* Pxx2_dB[], Edge2_Struct* Edge2, Edge2_Struct* Edge2_Plus,
 		Edge2_Struct* Edge2_Minus, SysParams_Struct* SysParams) {
@@ -1013,7 +1013,7 @@ int MotionCurveExtraction2(Motion_Struct2* MotionStruct, float* Mscan[],
 	return 0;
 }
 
-int FeatureExtractionBasedCurves2(Motion_Struct2* MotionStruct,
+int FeatureExtractionBasedCurves2(Motion_Struct* MotionStruct,
 		AllFeatures_Struct* FeatureSet, SysParams_Struct* SysParams) {
 	int Type;		//1 - ALL ,2 - only Plus, 3- only Minus
 	float sum_Edge2_Minus_Fmax = 0, sum_Edge2_Plus_Fmax = 0;
@@ -1036,7 +1036,6 @@ int FeatureExtractionBasedCurves2(Motion_Struct2* MotionStruct,
 	FeatureSet->Plus->FmaxFpeakMultiplication = 1; //#39 %SHOULD BE 2.5*2.5/100=0.0625 instead 1 in the origin
 	//
 
-	//	CurveLength2(MotionStruct, MotionStruct->Edge2, SysParams);	//Calculate the event that defined by the peak (black) curve: maxlegnth, start index and end index
 	CurveLength(MotionStruct, SysParams);//Calculate the event that defined by the peak (black) curve: maxlegnth, start index and end index
 
 	if (MotionStruct->EventStruct->LengthOfMaxEvent
@@ -1049,7 +1048,6 @@ int FeatureExtractionBasedCurves2(Motion_Struct2* MotionStruct,
 
 	} else {
 		//try calculate the event based only on Plus
-		//		CurveLength2(MotionStruct, MotionStruct->Edge2_Plus, SysParams);
 		CurveLength(MotionStruct, SysParams);//Calculate the event that defined by the peak (black) curve: maxlegnth, start index and end index
 
 		if (MotionStruct->EventStruct->LengthOfMaxEvent
@@ -1060,7 +1058,6 @@ int FeatureExtractionBasedCurves2(Motion_Struct2* MotionStruct,
 			maxEventLength = MotionStruct->EventStruct->LengthOfMaxEvent;
 		}
 		//try calculate the event based only on Minus
-		//		CurveLength2(MotionStruct, MotionStruct->Edge2_Minus, SysParams);
 		CurveLength(MotionStruct, SysParams);//Calculate the event that defined by the peak (black) curve: maxlegnth, start index and end index
 
 		if (MotionStruct->EventStruct->LengthOfMaxEvent
@@ -1107,7 +1104,7 @@ int FeatureExtractionBasedCurves2(Motion_Struct2* MotionStruct,
 	return 0;
 }
 
-int Feature42_2(Motion_Struct2* MotionStruct, AllFeatures_Struct* FeatureSet) {
+int Feature42_2(Motion_Struct* MotionStruct, AllFeatures_Struct* FeatureSet) {
 	//This function is taking the filtered 50precent curve, zero-padds to 256,perform DFT,normalize and caclulates the energy from min_bin
 	//perform to Plus and Minus and take the maximum
 	//fast movements like hands have energy at high frequencies so the outcome of this function will be big
@@ -1287,7 +1284,7 @@ int Feature42_2(Motion_Struct2* MotionStruct, AllFeatures_Struct* FeatureSet) {
 }
 
 
-int Feature42(Motion_Struct2* MotionStruct, AllFeatures_Struct* FeatureSet,SysParams_Struct* SysParams) {
+int Feature42(Motion_Struct* MotionStruct, AllFeatures_Struct* FeatureSet,SysParams_Struct* SysParams) {
 	//This function is taking the filtered 50precent curve, zero-padds to 256,perform DFT,normalize and caclulates the energy from min_bin
 	//perform to Plus and Minus and take the maximum
 	//fast movements like hands have energy at high frequencies so the outcome of this function will be big
@@ -1428,7 +1425,7 @@ int Feature42(Motion_Struct2* MotionStruct, AllFeatures_Struct* FeatureSet,SysPa
 
 
 
-int ExtractFeatures2(Motion_Struct2* MotionStruct,
+int ExtractFeatures2(Motion_Struct* MotionStruct,
 		AllFeatures_Struct* FeatureSet, int Type, SysParams_Struct *SysParams) {
 	int TimeBin_50Precent_Fmax_Plus = MotionStruct->EventStruct->chosenStart, TimeBin_50Precent_Fmax_Minus = MotionStruct->EventStruct->chosenStart;
 	float Arr_for_sort_Plus[MotionStruct->EventStruct->LengthOfChosenEvent + 1];
@@ -1559,7 +1556,7 @@ int ExtractFeatures2(Motion_Struct2* MotionStruct,
 	return 0;
 }
 
-int PolynomialFeatures2(Edge2_Struct* Edge2, Motion_Struct2 *MotionStruct,
+int PolynomialFeatures2(Edge2_Struct* Edge2, Motion_Struct *MotionStruct,
 		Features_Struct *Features) {
 	int MedianValue = 20, peakIdx, NumBinsForPolynom;
 	int howManySamplesEachSide = 20;
@@ -1697,7 +1694,7 @@ int SNRFeature(Edge2_Struct* Edge2_Plus, Edge2_Struct* Edge2_Minus,
 	return 0;
 }
 
-int CurveLength(Motion_Struct2 *MotionStruct, SysParams_Struct *SysParams) {
+int CurveLength(Motion_Struct *MotionStruct, SysParams_Struct *SysParams) {
 	//This function searches for events with minimal length of minEventDuration=30
 	//	        | x(n-1)=0    | x(n-1)=1    |
 	//	 x(n)=0 | DO NOTHING  | STOP EVENT  |
@@ -1785,74 +1782,7 @@ int CurveLength(Motion_Struct2 *MotionStruct, SysParams_Struct *SysParams) {
 	return 0;
 }
 
-int CurveLength2(Motion_Struct2 *MotionStruct, Edge2_Struct* Edge2,
-		SysParams_Struct *SysParams) {
-	//This function searches for events with minimal length of minEventDuration=30
-	//	        | x(n-1)=0    | x(n-1)=1    |
-	//	 x(n)=0 | DO NOTHING  | STOP EVENT  |
-	//	 x(n)=1 | START EVENT |  DO NOTHING |
-	float minValue = 2.512562814070352; //Fmin in Hz
-	int i, k, x_before, x_current;
-	int size_list = floor(SysParams->SpectrogramTimeBins / 2);
-	int startList[size_list];
-	int endList[size_list];
-	int LengthOfMaxEvent = 0, idxChosenEvent;
-	int pointer = 0; //number of the event in startlist & endlist
-	float FmaxPerEvent, GlobalFmax = 0;
-	int oneHotEdge2_Plus_Peak_Filtered[SysParams->SpectrogramTimeBins + 2]; //+2 for inital state and end state
-	memset(oneHotEdge2_Plus_Peak_Filtered, 0,
-			(SysParams->SpectrogramTimeBins + 2) * sizeof(int));
 
-	for (i = 0; i < SysParams->SpectrogramTimeBins; i++) {
-		if (Edge2->Peak_Filtered[i] > minValue) { //put 1's in all the bins that pass the minValue otherwise stay 0
-			oneHotEdge2_Plus_Peak_Filtered[i + 1] = 1;
-			//			printf("%d,    %lf\n", i, Edge2->Peak_Filtered[i]);
-		} //first and last stayed 0
-	}
-
-	for (i = 1; i < SysParams->SpectrogramTimeBins + 2; i++) {
-		x_before = oneHotEdge2_Plus_Peak_Filtered[i - 1];
-		x_current = oneHotEdge2_Plus_Peak_Filtered[i];
-
-		if ((x_before == 0) && (x_current == 1)) { //start of event
-			startList[pointer] = i - 1;
-		} else if ((x_before == 1) && (x_current == 0)) { //end of event and
-			if (((i - 2) - startList[pointer]) > SysParams->minEventDuration) { //the event is bigger than minduration
-				endList[pointer] = i - 2;
-				if ((i - 2) - startList[pointer] > LengthOfMaxEvent) {
-					LengthOfMaxEvent = (i - 2) - startList[pointer]; //was i-1
-					//					idx_of_LengthOfMaxEvent=pointer;
-				}
-				FmaxPerEvent = 0;
-				for (k = startList[pointer]; k <= endList[pointer]; k++) {
-					if (Edge2->FiftyPrecent_Filtered[k] > FmaxPerEvent)	//find max of FiftyPrecent_Filtered in the event
-						FmaxPerEvent = Edge2->FiftyPrecent_Filtered[k];
-				}
-				if (FmaxPerEvent > GlobalFmax) {
-					GlobalFmax = FmaxPerEvent;
-					idxChosenEvent = pointer;
-				}
-				pointer += 1;
-			} else {
-				pointer -= 1;//don't take this event in account because it's short
-			}
-		}
-	}
-	//	printf("%d\n", LengthOfMaxEvent);
-
-	if (LengthOfMaxEvent > 0)
-		MotionStruct->EventStruct->LengthOfMaxEvent = LengthOfMaxEvent;
-	else
-		//event not found
-		MotionStruct->EventStruct->LengthOfMaxEvent = 0;
-
-	MotionStruct->EventStruct->chosenStart = startList[idxChosenEvent];
-	MotionStruct->EventStruct->chosenEnd = endList[idxChosenEvent];
-	MotionStruct->EventStruct->LengthOfChosenEvent = endList[idxChosenEvent]
-															 - startList[idxChosenEvent];					//was +1
-
-	return 0;
-}
 int CalcCurvesHilbert2(Pxx2_Plus_Struct *Pxx2_Plus,
 		Pxx2_Minus_Struct* Pxx2_Minus, Edge2_Struct* Edge2_Plus,
 		Edge2_Struct* Edge2_Minus, SysParams_Struct* SysParams) {//CalcRedStarsCurve3_FirstStep2 in Matlab
@@ -2097,198 +2027,7 @@ int CalcCurvesHilbert2(Pxx2_Plus_Struct *Pxx2_Plus,
 	return 0;
 }
 
-int HilbertSpectrogram2(float* Pxx2_Hilbert[], float* Pxx2_dB[], float *T2_dB,
-		float* Mscan[], int p1, Edge2_Struct *Edge2_Plus,
-		Edge2_Struct * Edge2_Minus, SysParams_Struct* SysParams) {
 
-	int i, j, m;
-	int k;
-	int p2 = p1 + SysParams->RangeWide - 1;
-	//	_Complex float Signal_for_DFT[SysParams->winLength];
-	fftwf_complex *SignalForFFT;
-	SignalForFFT = (fftwf_complex*) fftwf_malloc(
-			sizeof(fftwf_complex) * SysParams->SpectrogramFreqBinsHilbert);	//pay attention
-	memset(SignalForFFT, 0,
-			sizeof(fftwf_complex) * SysParams->SpectrogramFreqBinsHilbert);	//was in original
-
-	//	fftwf_complex SignalForFFT[SysParams->SpectrogramFreqBinsHilbert];
-
-	fftwf_plan p;
-
-	fftwf_complex *out;
-	out = (fftwf_complex*) fftwf_malloc(
-			sizeof(fftwf_complex) * SysParams->SpectrogramFreqBinsHilbert);
-	//	fftwf_complex out[SysParams->SpectrogramFreqBinsHilbert];
-
-	p = fftwf_plan_dft_1d(SysParams->SpectrogramFreqBinsHilbert, SignalForFFT,
-			out, FFTW_FORWARD, FFTW_ESTIMATE);
-
-	int noiseThresh = (5 + 6);
-	_Complex float *MscanIQ[SysParams->Nscans];
-	//	_Complex float ResultDFT[SysParams->DFTLengthForSpectrogramHilbert];
-	//	_Complex float exp_arg = -I * 2 * M_PI
-	//			/ SysParams->DFTLengthForSpectrogramHilbert;
-	float SumForMeanPlus, SumForMeanMinus;
-	//	float* Spectrogram_per_RangeBin[SysParams->SpectrogramFreqBinsHilbert];
-	float SpectrogramPerRangeBin[SysParams->SpectrogramFreqBinsHilbert];
-
-	Pxx2_Plus_Struct Pxx2_Plus;
-	Pxx2_Minus_Struct Pxx2_Minus;
-
-	for (i = 0; i < SysParams->SpectrogramFreqBinsHilbert / 2 + 1; i++) {//=101
-		Pxx2_Plus.Linear[i] = (float *) malloc(
-				SysParams->SpectrogramTimeBins * sizeof(float));
-		Pxx2_Plus.dB[i] = (float *) malloc(
-				SysParams->SpectrogramTimeBins * sizeof(float));
-
-		if (i < SysParams->SpectrogramFreqBinsHilbert / 2) {
-			Pxx2_Minus.Linear[i] = (float *) malloc(
-					SysParams->SpectrogramTimeBins * sizeof(float));
-			Pxx2_Minus.dB[i] = (float *) malloc(
-					SysParams->SpectrogramTimeBins * sizeof(float));
-		}
-	}
-
-	//	for (i = 0; i < SysParams->SpectrogramFreqBinsHilbert; i++) {
-	//		Spectrogram_per_RangeBin[i] = (float *) malloc(
-	//				SysParams->SpectrogramTimeBins * sizeof(float));
-	//		//				SpectrogramPerRangeBin[i] = (float *) malloc(
-	//		//								SysParams->SpectrogramTimeBins * sizeof(float));
-	//	}
-
-	for (i = 0; i < SysParams->Nscans; i++) {
-		MscanIQ[i] = (_Complex float *) malloc(
-				SysParams->Nbins * sizeof(_Complex float));
-	}
-	//	gettimeofday(&tpStart,0);
-
-	Hilbert(Mscan, MscanIQ, SysParams);	//get the IQ signal with hilbert transform
-	//		gettimeofday(&tpStop,0);f1 = ( (float)( tpStop.tv_sec-tpStart.tv_sec)+ (float)(tpStop.tv_usec)/1000000 ) -  ((float)(tpStart.tv_usec)/1000000);
-	//		printf (" %f sec\n", f1 );
-	//PreProcess
-	SlowProcessingHilbert(MscanIQ, MscanIQ, SysParams); //remove DC
-	//	gettimeofday(&tpStart, 0);
-	NotchFilterHilbert(MscanIQ, SysParams); //filter the 50&100Hz disturbance that occurred from the fluorescent lamp
-
-	//	gettimeofday(&tpStop, 0);
-	//
-	//	f1 = ((float) (tpStop.tv_sec - tpStart.tv_sec)
-	//			+ (float) (tpStop.tv_usec) / 1000000)
-	//																			- ((float) (tpStart.tv_usec) / 1000000);
-	//	printf(" %f sec\n", f1);
-
-	for (j = p1; j <= p2; j++) {	//relevant bins [p1,p2]
-
-		for (i = 0; i < SysParams->SpectrogramTimeBins; i++) {//take the next 30 points of slow for the FFT
-
-			for (m = 0; m < SysParams->winLength; m++) {//windowing with hamming
-				SignalForFFT[m] = SysParams->Hamming[m]
-													 * MscanIQ[m + i * (SysParams->TimeShift)][j];
-
-			}
-
-			fftwf_execute(p);	//shor ttime fft on 30 time bins
-
-			for (k = 0; k < SysParams->SpectrogramFreqBinsHilbert; k++) {
-
-				SpectrogramPerRangeBin[k] = powf(cabsf(out[k]), 2);
-
-				if (j == p1) {//if it's the first spectrogram per range bin, put 0 first
-					Pxx2_Hilbert[k][i] = 0;
-				}
-				Pxx2_Hilbert[k][i] += (SpectrogramPerRangeBin[k])
-																														/ (SysParams->RangeWide);//Calculate the average for the final spectrogram
-
-				if (k < SysParams->SpectrogramFreqBinsHilbert / 2 + 1) {//fill the Plus part of the spectrogram
-					if (j == p1) {//if it's the first spectrogram per range bin, put 0 first
-						Pxx2_Plus.Linear[k][i] = 0;
-					}
-					Pxx2_Plus.Linear[k][i] += (SpectrogramPerRangeBin[k])
-																															/ (SysParams->RangeWide);
-
-				}
-
-				if ((k >= SysParams->SpectrogramFreqBinsHilbert / 2)) {	//fill the Minus part of the spectrogram
-					if (j == p1) {//if it's the first spectrogram per range bin, put 0 first
-
-						Pxx2_Minus.Linear[SysParams->SpectrogramFreqBinsHilbert
-										  - k][i] = 0;
-
-					}
-					if (k == SysParams->SpectrogramFreqBinsHilbert / 2) {
-						Pxx2_Minus.Linear[0][i] = Pxx2_Plus.Linear[0][i];
-					} else {
-						Pxx2_Minus.Linear[SysParams->SpectrogramFreqBinsHilbert
-										  - k][i] += (SpectrogramPerRangeBin[k])
-																																/ (SysParams->RangeWide);//the spectrum stored flipped
-					}
-				}
-			}
-
-		}
-	}
-
-	for (i = 0; i < SysParams->SpectrogramTimeBins; i++) {
-		SumForMeanPlus = 0;
-		SumForMeanMinus = 0;
-		for (k = 0; k < SysParams->SpectrogramFreqBinsHilbert / 2 + 1; k++) {
-			Pxx2_Plus.dB[k][i] = 10 * log10(Pxx2_Plus.Linear[k][i]);
-			//			printf(" p %d %d %lf %lf %lf\n",i,k,Pxx2_Plus.Linear[k][i],10*log10(Pxx2_Plus.Linear[k][i]),Pxx2_Plus.dB[k][i]);
-			if ((k < SysParams->SpectrogramFreqBinsHilbert / 2)) {
-				Pxx2_Minus.dB[k][i] = 10 * log10(Pxx2_Minus.Linear[k][i]);
-				//				printf(" m %d %d %lf %lf %lf\n",i,k,Pxx2_Minus.Linear[k][i],10*log10(Pxx2_Minus.Linear[k][i]),Pxx2_Minus.dB[k][i]);
-			}
-			//caclucaltuation of the mean of the last 4 bins for the noise floor estimation
-			if (k
-					>= (SysParams->SpectrogramFreqBinsHilbert / 2 + 1
-							- SysParams->noiseFreqBins)) {
-				SumForMeanPlus += Pxx2_Plus.Linear[k][i];
-			}
-			if (k
-					>= (SysParams->SpectrogramFreqBinsHilbert / 2
-							- SysParams->noiseFreqBins)) {
-				SumForMeanMinus += Pxx2_Minus.Linear[k][i];
-			}
-		}
-		Edge2_Plus->T1_t[i] = 10
-				* log10(SumForMeanPlus / SysParams->noiseFreqBins)
-		+ noiseThresh;						//WAS PXX2
-		Edge2_Minus->T1_t[i] = 10
-				* log10(SumForMeanMinus / SysParams->noiseFreqBins)
-		+ noiseThresh;
-
-	}
-
-	CalcCurvesHilbert2(&Pxx2_Plus, &Pxx2_Minus, Edge2_Plus, Edge2_Minus,
-			SysParams);				//CalcRedStarsCurve3_FirstStep2 in Matlab
-
-	//FREE MEMORY
-	for (i = 0; i < SysParams->SpectrogramFreqBinsHilbert / 2 + 1; i++) {//=101
-		free(Pxx2_Plus.Linear[i]);
-		free(Pxx2_Plus.dB[i]);
-
-		if (i < SysParams->SpectrogramFreqBinsHilbert / 2) {
-			free(Pxx2_Minus.Linear[i]);
-			free(Pxx2_Minus.dB[i]);
-		}
-	}
-
-	for (i = 0; i < SysParams->Nscans; i++) {
-		free(MscanIQ[i]);
-	}
-	//	free(MscanIQ); free it
-
-	//	for (i = 0; i < SysParams->SpectrogramFreqBinsHilbert; i++) {
-	//		Spectrogram_per_RangeBin[i] = (float *) malloc(
-	//				SysParams->SpectrogramTimeBins * sizeof(float));
-	//	}
-	//	free(Spectrogram_per_RangeBin); free it
-
-	fftwf_destroy_plan(p);
-	fftwf_free(SignalForFFT);
-	fftwf_free(out);
-	return 0;
-}
 
 
 int HilbertSpectrogram4(float* Pxx2_Hilbert[], float* Pxx2[], float* Pxx2_dB[],
@@ -3146,7 +2885,7 @@ int MedianFilter(Edge2_Struct *Edge2, SysParams_Struct* SysParams,
 	return 0;
 }
 
-int MedianFilterFor50Precent(Edge2_Struct *Edge2, Motion_Struct2 *MotionStruct,
+int MedianFilterFor50Precent(Edge2_Struct *Edge2, Motion_Struct *MotionStruct,
 		float *Edge2_50Precent_MedianFiltered, int MedianValue) {//Filter the 50precentfiltered curve
 	int i;
 	int SignalLength = MotionStruct->EventStruct->LengthOfChosenEvent + 1;
@@ -3179,7 +2918,7 @@ int MedianFilterFor50Precent(Edge2_Struct *Edge2, Motion_Struct2 *MotionStruct,
 }
 
 float MedianFilterFor50Precent2(Edge2_Struct *Edge2,
-		Motion_Struct2 *MotionStruct, float *Edge2_50Precent_MedianFiltered,
+		Motion_Struct *MotionStruct, float *Edge2_50Precent_MedianFiltered,
 		int MedianValue) {			//Filter the 50precentfiltered curve
 	int i, m;
 	int LengthOfSignal = MotionStruct->EventStruct->LengthOfChosenEvent
@@ -3517,53 +3256,7 @@ int AbsOfFFT(float* Mscan[], float* Mscan_abs_FFT[],
 
 
 
-int AbsOfFFT2(float* Mscan[], float* Mscan_abs_FFT[],
-		SysParams_Struct* SysParams) {
-	int k, n, j;
-	_Complex float Mscan_FFT[SysParams->DFTLengthForPSD];
 
-	//	fftwf_complex MscanFFT[SysParams->DFTLengthForPSD];
-	fftwf_complex MscanFFT[SysParams->Nscans / 2 + 1];
-
-	fftwf_plan my_plan;
-	fftwf_plan my_plan2;
-	int flags = 1;
-	float SignalForFFT[SysParams->Nscans];
-	float fftin_local_ptr_complex[SysParams->DFTLengthForPSD];
-	memset(fftin_local_ptr_complex, 0, sizeof(fftin_local_ptr_complex));
-	//	my_plan = fftwf_plan_dft_r2c_2d(SysParams->Nscans,1,fftin_local_ptr_complex,MscanFFT,flags);
-	my_plan = fftwf_plan_dft_r2c_1d(SysParams->Nscans, fftin_local_ptr_complex,
-			MscanFFT, flags);
-
-	//	gettimeofday(&tpStart,0);
-
-	for (j = 0; j < SysParams->Nbins; j++) {
-		for (n = 0; n < SysParams->Nscans; n++) {
-			SignalForFFT[n] = Mscan[n][j];
-		}
-		fftwf_execute_dft_r2c(my_plan, SignalForFFT, MscanFFT);
-		//		fftwf_execute_dft_r2c(my_plan2,SignalForFFT,MscanFFT2);
-
-		for (k = 0; k < SysParams->DFTLengthForPSD; k++) {//Length/2 because only one side is wanted
-			Mscan_abs_FFT[k][j] = powf(cabs(MscanFFT[k]), 2);
-		}
-
-		//		for (k = 0; k < SysParams->DFTLengthForPSD; k++) {
-		//
-		//			Mscan_FFT[k] = 0;
-		//			for (n = 0; n < SysParams->Nscans; n++) {//implement one sided FFT in range of k=[0,Nscans/2+1]
-		//				Mscan_FFT[k] += cexp(-I * k * n * 2 * M_PI / SysParams->Nscans)
-		//																																																																		* Mscan[n][j];
-		//			}
-		//			Mscan_abs_FFT[k][j] = powf(cabs(Mscan_FFT[k]), 2);
-		//		}
-
-	}
-	//	gettimeofday(&tpStop,0); f1 = ( (float)( tpStop.tv_sec-tpStart.tv_sec)+ (float)(tpStop.tv_usec)/1000000 ) -  ((float)(tpStart.tv_usec)/1000000); printf (" %f sec\n", f1 );
-
-	fftwf_destroy_plan(my_plan);
-	return 0;
-}
 
 int MatchedFilter(float* Mscan[], SysParams_Struct* SysParams) {
 
@@ -4391,7 +4084,7 @@ void MemoryAllocation(Edge2_Struct* Edge2_1, Edge2_Struct* Edge2_2,
 void FreeMemory(Edge2_Struct* Edge2_1, Edge2_Struct* Edge2_2,
 		Edge2_Struct* Edge2_Plus_1, Edge2_Struct* Edge2_Minus_1,
 		Edge2_Struct* Edge2_Plus_2, Edge2_Struct* Edge2_Minus_2,
-		Motion_Struct2 *UnitedMotionStruct) {
+		Motion_Struct *UnitedMotionStruct) {
 
 	free(Edge2_1->FiftyPrecent);
 	free(Edge2_1->FiftyPrecent_Filtered);
