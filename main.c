@@ -12,14 +12,12 @@
 
 
 struct timeval tpStart , tpStop ;
-    struct timeval tp ;
-	float f1;
+struct timeval tp ;
+float f1;
+int i;
 
 int main( void ){
 	//	FILE *MscanFile = fopen("Mscan_withoutMF202.csv", "r");
-	FILE *MscanFile1 = fopen("/home/debian/Records/Mscan_withoutMF700_1.csv", "r");
-	FILE *MscanFile2 = fopen("/home/debian/Records/Mscan_withoutMF700_2.csv", "r");
-	FILE *MscanFile3 = fopen("/home/debian/Records/Mscan_withoutMF700_3.csv", "r");
 
 	SysParams_Struct SysParams;
 
@@ -39,7 +37,8 @@ int main( void ){
 	SysParams.Fbins=100;
 	SysParams.noiseFreqBins=4;
 	SysParams.Fmin_bin=2;
-	SysParams.MinFreq=2.5;//in Hz
+	SysParams.MinFreqPlusMinus=2.5;//in Hz
+	SysParams.MinFreqReal = 2.512562814070352; //Fmin in Hz
 	SysParams.minEventDuration=30;
 	SysParams.DFTLengthForPSD=floor(SysParams.Nscans/2)+1;
 	SysParams.noiseThresh=5;
@@ -54,7 +53,7 @@ int main( void ){
 	SysParams.MedianValue=20;//for MedianFilter
 	SysParams.AvgValue=5;//for AvgFilter
 	SysParams.topMaxFreq=5;
-	SysParams.truncate=0;// Computes medians of smaller segments as it reaches the signal edges in Pxx2 (regular) Spectrogram
+	SysParams.truncate=1;// Computes medians of smaller segments as it reaches the signal edges in Pxx2 (regular) Spectrogram
 	SysParams.truncateHilbert=1;// Computes medians of smaller segments as it reaches the signal edges in Hilbert Spectrogram
 
 	//Hamming window coefficients
@@ -73,6 +72,17 @@ int main( void ){
 	SysParams.A12_Inverse[3][0]=-324.000000000004;SysParams.A12_Inverse[3][1]=325.000000000004;SysParams.A12_Inverse[3][2]=-2.700000000000030e+03;SysParams.A12_Inverse[3][3]=-2.250000000000026e+03;
 	SysParams.NumSamplesForDerivativeEstimation=5;
 
+	//create Rbin_m
+	SysParams.Rstart_corrected=2.231486865000000;//for demo only!!! it will be the current Rstart
+	SysParams.Rbin_m=(float *)malloc(SysParams.Nbins * sizeof(float));
+	float delta_R=(SysParams.Ring)/((float)SysParams.Nbins-1);//the delta of the bins inside the ring(=Rstop-Rstart)=2.5m
+
+	for(i=0;i<SysParams.Nbins;i++){
+		SysParams.Rbin_m[i]=SysParams.Rstart_corrected+delta_R*i;
+	}
+
+	CreateFFTPlans(&SysParams);
+
 	Motion_Struct2 MotionStruct0;
 
 
@@ -80,9 +90,8 @@ int main( void ){
 	Edge2_Struct Edge2_Plus_0;
 	Edge2_Struct Edge2_Minus_0;
 
-	int i,j;
+	int j;
 	int NumOfTrees=8,NumOfFeatures=7;
-	float delta_R;
 	float Mscan_flat[SysParams.Nscans*SysParams.Nbins];
 	float* Mscan0[SysParams.Nscans],* Mscan1[SysParams.Nscans],*Mscan2[SysParams.Nscans],* Mscan3[SysParams.Nscans];//,*Mscan_old[SysParams.Nscans];
 	for (i=0; i<SysParams.Nscans; i++){
@@ -100,9 +109,9 @@ int main( void ){
 	/////MotioStruct0 Preparation/////
 	SysParams.SpectrogramTimeBins=SysParams.SpectrogramTimeBinsSingleMotion;
 
-	Edge2_0.FiftyPrecent_Filtered=(float *)malloc(SysParams.SpectrogramTimeBins * sizeof(float));
-	Edge2_0.Fmax=(float *)malloc(SysParams.SpectrogramTimeBins * sizeof(float));
-	Edge2_0.PrevLastFiftyPrecent=(float *)malloc((SysParams.AvgValue-1) * sizeof(float));
+	//	Edge2_0.FiftyPrecent_Filtered=(float *)malloc(SysParams.SpectrogramTimeBins * sizeof(float));
+	//	Edge2_0.Fmax=(float *)malloc(SysParams.SpectrogramTimeBins * sizeof(float));
+	//	Edge2_0.PrevLastFiftyPrecent=(float *)malloc((SysParams.AvgValue-1) * sizeof(float));
 
 	if(SysParams.truncate==1){// Computes medians of smaller segments as it reaches the signal edges. no zeropadding at the end and begining
 		Edge2_0.Peak=(float *)malloc((SysParams.SpectrogramTimeBins) * sizeof(float));
@@ -141,11 +150,6 @@ int main( void ){
 		Edge2_Minus_0.Peak_Filtered=(float *)malloc((SysParams.SpectrogramTimeBins+SysParams.MedianValue-1) * sizeof(float));
 	}
 
-	//	if(SysParams.FirstTimeMotion==1){//if it's first time there is no history and therefore set all 0 for the initial state of the AvgFilter
-	//		memset(Edge2_0.PrevLastFiftyPrecent,0,(SysParams.AvgValue-1)*sizeof(float));
-	//		memset(Edge2_Plus_0.PrevLastFiftyPrecent,0,(SysParams.AvgValue-1)*sizeof(float));
-	//		memset(Edge2_Minus_0.PrevLastFiftyPrecent,0,(SysParams.AvgValue-1)*sizeof(float));
-	//	}
 
 
 	MotionStruct0.Edge2=&Edge2_0;
@@ -155,85 +159,106 @@ int main( void ){
 	RF_Params_Import(NumOfTrees, NumOfFeatures,All_Trees,&RF_Model);
 	SVM_Params_Import(&SVM_Model);
 
-	read_data_from_file(MscanFile1,SysParams.Nscans,SysParams.Nbins,Mscan_flat);//get the MSCAN in flat form
-	for ( i=0;i<SysParams.Nscans;i++)
-	{//get the  MSCAN from flat
-		for ( j=0;j<SysParams.Nbins;j++)
-		{
-			Mscan0[i][j]=Mscan_flat[i*SysParams.Nbins+j];
-			//			Mscan_old[i][j]=Mscan_flat[i*Nbins+j];
+	////////load records files:
+
+	for(SysParams.RecordNumber=700;SysParams.RecordNumber<701;SysParams.RecordNumber++){
+		printf("record number %d\n",SysParams.RecordNumber);
+		char  Filename_Mscan1[50] ;
+		sprintf(Filename_Mscan1, "/home/debian/Records/Mscan_withoutMF%d_1.csv" , SysParams.RecordNumber);
+		FILE *MscanFile1=fopen(Filename_Mscan1, "r");
+
+		char  Filename_Mscan2[50] ;
+		sprintf(Filename_Mscan2, "/home/debian/Records/Mscan_withoutMF%d_2.csv" , SysParams.RecordNumber);
+		FILE *MscanFile2=fopen(Filename_Mscan2, "r");
+
+		char  Filename_Mscan3[50] ;
+		sprintf(Filename_Mscan3, "/home/debian/Records/Mscan_withoutMF%d_3.csv" , SysParams.RecordNumber);
+		FILE *MscanFile3=fopen(Filename_Mscan3, "r");
+
+
+
+
+
+
+		read_data_from_file(MscanFile1,SysParams.Nscans,SysParams.Nbins,Mscan_flat);//get the MSCAN in flat form
+		for ( i=0;i<SysParams.Nscans;i++)
+		{//get the  MSCAN from flat
+			for ( j=0;j<SysParams.Nbins;j++)
+			{
+				Mscan0[i][j]=Mscan_flat[i*SysParams.Nbins+j];
+				//			Mscan_old[i][j]=Mscan_flat[i*Nbins+j];
+			}
 		}
-	}
 
-	read_data_from_file(MscanFile1,SysParams.Nscans,SysParams.Nbins,Mscan_flat);//get the MSCAN in flat form
-	for ( i=0;i<SysParams.Nscans;i++)
-	{//get the  MSCAN from flat
-		for ( j=0;j<SysParams.Nbins;j++)
-		{
-			Mscan1[i][j]=Mscan_flat[i*SysParams.Nbins+j];
-			//			Mscan_old[i][j]=Mscan_flat[i*Nbins+j];
+		read_data_from_file(MscanFile1,SysParams.Nscans,SysParams.Nbins,Mscan_flat);//get the MSCAN in flat form
+		for ( i=0;i<SysParams.Nscans;i++)
+		{//get the  MSCAN from flat
+			for ( j=0;j<SysParams.Nbins;j++)
+			{
+				Mscan1[i][j]=Mscan_flat[i*SysParams.Nbins+j];
+				//			Mscan_old[i][j]=Mscan_flat[i*Nbins+j];
+			}
 		}
-	}
-
-	//create Rbin_m
-	SysParams.Rstart_corrected=2.231486865000000;//for demo only!!! it will be the current Rstart
-	SysParams.Rbin_m=(float *)malloc(SysParams.Nbins * sizeof(float));
-	delta_R=(SysParams.Ring)/((float)SysParams.Nbins-1);//the delta of the bins inside the ring(=Rstop-Rstart)=2.5m
-
-	for(i=0;i<SysParams.Nbins;i++){
-		SysParams.Rbin_m[i]=SysParams.Rstart_corrected+delta_R*i;
-//		printf("%d %lf\n",i,SysParams.Rbin_m[i]);
-	}
 
 
 
-	gettimeofday(&tpStart,0);
+		gettimeofday(&tpStart,0);
 
 
-	MotionHandler(Mscan0,Mscan1,&SysParams,All_Trees,&SVM_Model,&RF_Model,&MotionStruct0);
-	gettimeofday(&tpStop,0);
-//
-	f1 = ( (float)( tpStop.tv_sec-tpStart.tv_sec)+ (float)(tpStop.tv_usec)/1000000 ) -  ((float)(tpStart.tv_usec)/1000000) ;
-			printf (" %f sec\n", f1 );
+		MotionHandler(Mscan0,Mscan1,&SysParams,All_Trees,&SVM_Model,&RF_Model,&MotionStruct0);
+		gettimeofday(&tpStop,0); f1 = ( (float)( tpStop.tv_sec-tpStart.tv_sec)+ (float)(tpStop.tv_usec)/1000000 ) -  ((float)(tpStart.tv_usec)/1000000) ;
+		printf (" %f sec\n", f1 );
 
 
-//	free(Mscan0);NNED TO FREE
-//	free(Mscan1);
-
-	////////////////////
-
-
-	SysParams.FirstTimeMotion=0;//now will be 3 motions
-
-
-	read_data_from_file(MscanFile2,SysParams.Nscans,SysParams.Nbins,Mscan_flat);//get the MSCAN in flat form
-	for ( i=0;i<SysParams.Nscans;i++)
-	{//get the  MSCAN from flat
-		for ( j=0;j<SysParams.Nbins;j++)
-		{
-			Mscan2[i][j]=Mscan_flat[i*SysParams.Nbins+j];
+		for (i=0; i<SysParams.Nscans; i++){
+			free(Mscan0[i]);
+			free(Mscan1[i]);
 		}
-	}
+		////////////////////
 
 
-	read_data_from_file(MscanFile3,SysParams.Nscans,SysParams.Nbins,Mscan_flat);//get the MSCAN in flat form
-	for ( i=0;i<SysParams.Nscans;i++)
-	{//get the  MSCAN from flat
-		for ( j=0;j<SysParams.Nbins;j++)
-		{
-			Mscan3[i][j]=Mscan_flat[i*SysParams.Nbins+j];
+		SysParams.FirstTimeMotion=0;//now will be 3 motions
+
+
+		read_data_from_file(MscanFile2,SysParams.Nscans,SysParams.Nbins,Mscan_flat);//get the MSCAN in flat form
+		for ( i=0;i<SysParams.Nscans;i++)
+		{//get the  MSCAN from flat
+			for ( j=0;j<SysParams.Nbins;j++)
+			{
+				Mscan2[i][j]=Mscan_flat[i*SysParams.Nbins+j];
+			}
 		}
+
+
+		read_data_from_file(MscanFile3,SysParams.Nscans,SysParams.Nbins,Mscan_flat);//get the MSCAN in flat form
+		for ( i=0;i<SysParams.Nscans;i++)
+		{//get the  MSCAN from flat
+			for ( j=0;j<SysParams.Nbins;j++)
+			{
+				Mscan3[i][j]=Mscan_flat[i*SysParams.Nbins+j];
+			}
+		}
+		gettimeofday(&tpStart,0);
+
+		MotionHandler(Mscan2,Mscan3,&SysParams,All_Trees,&SVM_Model,&RF_Model,&MotionStruct0);
+
+		gettimeofday(&tpStop,0); f1 = ( (float)( tpStop.tv_sec-tpStart.tv_sec)+ (float)(tpStop.tv_usec)/1000000 ) -  ((float)(tpStart.tv_usec)/1000000) ;
+		printf (" %f sec\n", f1 );
+
+		for (i=0; i<SysParams.Nscans; i++){
+				free(Mscan2[i]);
+				free(Mscan3[i]);
+			}
+
 	}
 
-	MotionHandler(Mscan2,Mscan3,&SysParams,All_Trees,&SVM_Model,&RF_Model,&MotionStruct0);
 
 
-
-//	free(Mscan2);
-//	free(Mscan3);
-
-
-
+	fftwf_destroy_plan(SysParams.FFT_Hilbert);
+	fftwf_destroy_plan(SysParams.IFFT_Hilbert);
+	fftwf_destroy_plan(SysParams.FFT_HilbertSpectrogram);
+	fftwf_destroy_plan(SysParams.FFT_ABS);
+	ne10_fft_destroy_r2c_float32(SysParams.FFT_Feature42);
 
 	return 0;
 }
@@ -371,3 +396,69 @@ int SVM_Params_Import(SVM_Struct* SVM_Model){
 
 	return 0;
 }
+
+int CreateFFTPlans(SysParams_Struct *SysParams){
+
+	//	SysParams->MscanFFT=fftwf_malloc(SysParams->Nbins);
+	//	SysParams->MscanIFFT=fftwf_malloc(SysParams->Nbins);
+	//	SysParams->MscanIFFT[SysParams->Nbins];
+
+	int flags = 1;
+	float fftin_local_ptr_complex[SysParams->Nbins];
+	memset(fftin_local_ptr_complex, 0, sizeof(fftin_local_ptr_complex));
+	SysParams->FFT_Hilbert = fftwf_plan_dft_r2c_1d(SysParams->Nbins,
+			fftin_local_ptr_complex, SysParams->MscanFFT, flags);
+
+	SysParams->IFFT_Hilbert = fftwf_plan_dft_1d(SysParams->Nbins, SysParams->MscanFFT, SysParams->MscanIFFT,
+			FFTW_BACKWARD, FFTW_MEASURE);	//MAYBE ESTIMATEEEEE!!!!!
+
+
+
+
+	SysParams->FFT_HilbertSpectrogram = fftwf_plan_dft_r2c_1d(SysParams->Nbins,
+			fftin_local_ptr_complex, SysParams->MscanFFT, flags);
+
+
+	SysParams->SignalForFFT = (fftwf_complex*) fftwf_malloc( sizeof(fftwf_complex) * SysParams->SpectrogramFreqBinsHilbert);	//pay attention
+
+	SysParams->SignalForFFTABS = (fftwf_complex*) fftwf_malloc( sizeof(fftwf_complex) * SysParams->Nscans);	//pay attention
+
+
+
+	SysParams->FFTResult = (fftwf_complex*) fftwf_malloc(
+			sizeof(fftwf_complex) * SysParams->SpectrogramFreqBinsHilbert);
+
+
+	SysParams->FFTResultABS = (fftwf_complex*) fftwf_malloc(
+			sizeof(fftwf_complex) * (SysParams->Nscans));
+
+	SysParams->FFT_HilbertSpectrogram=fftwf_plan_dft_1d(SysParams->SpectrogramFreqBinsHilbert,
+			SysParams->SignalForFFT, SysParams->FFTResult, FFTW_FORWARD, FFTW_ESTIMATE);
+
+	SysParams->FFT_ABS= fftwf_plan_dft_1d(SysParams->Nscans ,
+			SysParams->SignalForFFTABS, SysParams->FFTResultABS, FFTW_FORWARD, FFTW_ESTIMATE);
+
+	// An FFT "configuration structure"
+	SysParams->FFT_Feature42 = ne10_fft_alloc_r2c_float32(256);
+
+	return 0;
+}
+
+
+//int Create2DArrays(SysParams_Struct *SysParams){
+//
+//	for (i = 0; i < SysParams->DFTLengthForPSD; i++) {
+//		Mscan_abs_FFT[i] = (float *) malloc(SysParams->Nbins * sizeof(float));
+//	}
+//	for (i = 0; i < SysParams->SpectrogramFreqBins; i++) {
+//		Pxx2_dB[i] = (float *) malloc(
+//				SysParams.SpectrogramTimeBinsSingleMotion * sizeof(float));
+//		Pxx2[i] = (float *) malloc(
+//				SysParams->SpectrogramTimeBins * sizeof(float));
+//	}
+//	for (i = 0; i < SysParams->SpectrogramFreqBinsHilbert; i++) {
+//
+//		Pxx2_Hilbert[i] = (float *) malloc(
+//				SysParams->SpectrogramTimeBins * sizeof(float));
+//	}
+//}

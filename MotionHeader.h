@@ -1,5 +1,32 @@
 #include <stdio.h>
 #include <fftw3.h>
+#include <NE10.h>
+#include "seatest.h"
+#include "NE10_dsp.h"
+
+
+typedef struct {//need to change to flexiable size
+	float* Fmax;
+	float* Peak;
+	float* Peak_Filtered;
+	float* FiftyPrecent;
+	float* FiftyPrecent_Filtered;
+	int* FiftyPrecentIdxs;
+	float* PeakEnergy;
+//	float* SumEnergy;
+	float* maxFreqEnergy;
+	int* maxFreqIdxs;
+	int* maxPeakIdxs;
+	int* FreqBins;
+	float* PeakEnergy_PM;
+	float* SumEnergy_Post;
+	float SNR_Linear;
+	float SNR_Both;
+	float* PrevLastFiftyPrecent;
+	float* T1_t;
+
+} Edge2_Struct;
+
 
 
 typedef struct {
@@ -20,7 +47,8 @@ typedef struct {
 	int Fbins;
 	int noiseFreqBins;
 	int Fmin_bin;
-	float MinFreq;
+	float MinFreqPlusMinus;
+	float MinFreqReal;
 	float Hamming[30];
 	int DFTLengthForPSD;
 	int noiseThresh;
@@ -42,6 +70,21 @@ typedef struct {
 	int GapLength;
 	int minEventDuration;
 	int topMaxFreq;
+	int RecordNumber;
+	fftwf_plan FFT_Hilbert;
+	fftwf_plan IFFT_Hilbert;
+fftwf_plan FFT_HilbertSpectrogram;
+fftwf_plan FFT_ABS;
+
+	fftwf_complex MscanFFT[288];
+	fftwf_complex MscanIFFT[288];
+	fftwf_complex* SignalForFFT;
+	fftwf_complex* SignalForFFTABS;
+	fftwf_complex*  FFTResult;
+	fftwf_complex*  FFTResultABS;
+	ne10_fft_r2c_cfg_float32_t FFT_Feature42;
+
+
 } SysParams_Struct;
 
 
@@ -81,27 +124,6 @@ typedef struct {//need to change to flexiable size
 } Edge_Struct;
 
 
-typedef struct {//need to change to flexiable size
-	float* Fmax;
-	float* Peak;
-	float* Peak_Filtered;
-	float* FiftyPrecent;
-	float* FiftyPrecent_Filtered;
-	int* FiftyPrecentIdxs;
-	float* PeakEnergy;
-//	float* SumEnergy;
-	float* maxFreqEnergy;
-	int* maxFreqIdxs;
-	int* maxPeakIdxs;
-	int* FreqBins;
-	float* PeakEnergy_PM;
-	float* SumEnergy_Post;
-	float SNR_Linear;
-	float SNR_Both;
-	float* PrevLastFiftyPrecent;
-	float* T1_t;
-
-} Edge2_Struct;
 
 typedef struct {
 	int chosenStart;
@@ -127,7 +149,6 @@ typedef struct {
 	int num_of_features;
 }
 Motion_Struct;
-
 
 
 typedef struct {
@@ -204,6 +225,9 @@ typedef struct {
 int RF_Params_Import(int NumOfTrees,int NumOfFeatures, Tree_Struct** All_Trees,RF_Struct* RF_Model);
 int TreesCreator(int NumOfTrees,Tree_Struct** All_Trees);
 int SVM_Params_Import(SVM_Struct* SVM_Model);
+int CreateFFTPlans(SysParams_Struct *SysParams);
+int CreateEdges(SysParams_Struct* SysParams);
+
 int MotionHandler(float* Mscan1[],float* Mscan2[],SysParams_Struct* SysParams,Tree_Struct** All_Trees,SVM_Struct* SVM_Model,RF_Struct* RF_Model,Motion_Struct2* MotionStruct0);
 int FFT(float* fft_in, float* SpectrogramPerRangeBin[], int FFT_Length,int CurrTimeBin);
 
@@ -216,11 +240,16 @@ int SlowProcessingHilbert(_Complex float* Mscan[],_Complex float* Mscan_PostProc
 
 int NotchFilter2(float* Mscan[],SysParams_Struct* SysParams);
 int NotchFilterHilbert(_Complex float* Mscan[], SysParams_Struct* SysParams);
+int AbsOfFFT(float* Mscan[], float* Mscan_abs_FFT[],SysParams_Struct* SysParams);
 
 int AbsOfFFT2(float* Mscan[], float* Mscan_abs_FFT[],SysParams_Struct* SysParams);
+int GET_ROI(float *Mscan_abs_FFT[], SysParams_Struct* SysParams, int *p1);
+
 int GET_ROI2(float *Mscan_abs_FFT[],SysParams_Struct* SysParams,int *p1);
 int Spectrogram2(float* Pxx2[],float* Pxx2_dB[],float *T2_dB,float* Mscan[],int p1,SysParams_Struct* SysParams);
 int Hilbert(float* Mscan[], _Complex float* MscanIQ[], SysParams_Struct* SysParams);
+int CurveLength(Motion_Struct2 *MotionStruct,SysParams_Struct *SysParams);
+
 int CurveLength2(Motion_Struct2 *MotionStruct,Edge2_Struct* Edge2,SysParams_Struct *SysParams);
 int MotionCurveExtraction2(Motion_Struct2* MotionStruct,float* Mscan[],float* Mscan_abs_FFT[],float* Pxx2_Hilbert[],float* Pxx2[],float* Pxx2_dB[],Edge2_Struct* Edge2,Edge2_Struct* Edge2_Plus,Edge2_Struct* Edge2_Minus,SysParams_Struct* SysParams);
 int FeatureExtractionBasedCurves2(Motion_Struct2* MotionStruct,AllFeatures_Struct* FeatureSet,SysParams_Struct* SysParams);
@@ -230,6 +259,7 @@ int CalcCurves3(float* Pxx2[],float* Pxx2_dB[],float *T2_dB,Edge2_Struct *Edge2,
 int HilbertSpectrogram2(float* Pxx2_Hilbert[],float* Pxx2_dB[],float *T2_dB,float* Mscan[],int p1,Edge2_Struct *Edge2_Plus,Edge2_Struct * Edge2_Minus,SysParams_Struct* SysParams);
 
 int HilbertSpectrogram3(float* Pxx2_Hilbert[],float* Pxx2[], float* Pxx2_dB[], float *T2_dB,float* Mscan[], int p1, Edge2_Struct *Edge2_Plus,Edge2_Struct * Edge2_Minus,Edge2_Struct * Edge2, SysParams_Struct* SysParams);
+int HilbertSpectrogram4(float* Pxx2_Hilbert[],float* Pxx2[], float* Pxx2_dB[], float *T2_dB,float* Mscan[], int p1, Edge2_Struct *Edge2_Plus,Edge2_Struct * Edge2_Minus,Edge2_Struct * Edge2, SysParams_Struct* SysParams);
 
 int CalcCurvesHilbert2(Pxx2_Plus_Struct *Pxx2_Plus,Pxx2_Minus_Struct* Pxx2_Minus,Edge2_Struct* Edge2_Plus,Edge2_Struct* Edge2_Minus,SysParams_Struct* SysParams);
 int MedianFilter(Edge2_Struct *Edge2, SysParams_Struct* SysParams,int MedianType);
@@ -243,14 +273,24 @@ int MedianFilterFor50Precent(Edge2_Struct *Edge2, Motion_Struct2 *MotionStruct, 
 float MedianFilterFor50Precent2(Edge2_Struct *Edge2, Motion_Struct2 *MotionStruct, float *Edge2_50Precent_MedianFiltered,int MedianValue);
 int MaxOfArr(float *Arr,int *MaxIdx, float *MaxValue, int Length);
 int PolynomialFeatures2(Edge2_Struct* Edge2,Motion_Struct2 *MotionStruct,Features_Struct *Features);
+int Feature42(Motion_Struct2* MotionStruct, AllFeatures_Struct* FeatureSet,SysParams_Struct* SysParams);
 int Feature42_2(Motion_Struct2* MotionStruct,AllFeatures_Struct* FeatureSet);
 int SNRFeature(Edge2_Struct* Edge2_Plus,Edge2_Struct* Edge2_Minus,AllFeatures_Struct *Featureset,SysParams_Struct *SysParams);
 int RandomForrestClassifier(AllFeatures_Struct* FeatureSet,Tree_Struct** All_Trees,float * MotionDistribution,RF_Struct* RF_Model);
 int ClassifierCorrection(AllFeatures_Struct* FeatureSet,float * MotionDistribution, int *y_hat_M,SVM_Struct* SVM_Model);
 int SVMClassifier(AllFeatures_Struct* FeatureSet,float * MotionDistribution, int *y_hat_M,SVM_Struct *SVM_Model);
 int GapInterpolation2( Motion_Struct2 *MotionStruct0,Motion_Struct2 *MotionStruct1,Motion_Struct2 *MotionStruct2,Motion_Struct2 *UnitedMotionStruct,SysParams_Struct* SysParams);
-int GapInterpolation_2Curves(float* LeftCurve,float* RightCurve, float *IntrpolatedCurve, SysParams_Struct* SysParams,int FirstGap);
-
-
+int GapInterpolation_2Curves(float* LeftCurve, float* RightCurve,
+		float *IntrpolatedCurve, SysParams_Struct* SysParams, int FirstGap,int isHilbert);
+float Max(float Val1, float Val2);
 int MotionTracking(float* Mscan[],SysParams_Struct* SysParams);
 int K_means(float* energyPerTime_dB[],SysParams_Struct* SysParams,float* ChosenCentoird1,float* ChosenCentoird2);
+int SaveToCsv(int y_hat,float* MotionDistribution,AllFeatures_Struct* FeatureSet,
+		RF_Struct* RF_Model,SysParams_Struct *SysParams);
+
+int SavePxx2ToCsv(float* Pxx2[],
+		SysParams_Struct *SysParams);
+
+int hilbert(float *signal, int N, float _Complex *output);
+int Hilbert2(float* Mscan[],_Complex float* MscanIQ[],int Nbins,int Nscans);
+
