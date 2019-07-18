@@ -10,7 +10,8 @@ main.d: ../main.c ../MotionHeader.h \
  /home/echocare/work/system/app/Ne10/inc/NE10_imgproc.h \
  /home/echocare/work/system/app/Ne10/inc/NE10_physics.h ../seatest.h \
  ../unit_test_common.h ../NE10_random.h \
- /home/echocare/work/system/app/Ne10/inc/NE10_dsp.h ../test.h
+ /home/echocare/work/system/app/Ne10/inc/NE10_dsp.h ../test.h \
+ ../BgXmlParser.h
 
 ../MotionHeader.h:
 
@@ -43,3 +44,5 @@ main.d: ../main.c ../MotionHeader.h \
 /home/echocare/work/system/app/Ne10/inc/NE10_dsp.h:
 
 ../test.h:
+
+../BgXmlParser.h:

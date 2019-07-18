@@ -43,7 +43,7 @@ all: MotionWithFFT
 MotionWithFFT: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross G++ Linker'
-	arm-linux-gnueabihf-g++ -L/home/echocare/work/system/app/install/lib -L/home/echocare/work/system/app/fftw-3.3.8/__install/lib -L/home/echocare/work/system/app/Ne10/build/modules -L/home/echocare/work/system/app/opencv/opencv/build_arm/install/lib -o "MotionWithFFT" $(OBJS) $(USER_OBJS) $(LIBS)
+	arm-linux-gnueabihf-g++ -L/home/echocare/work/system/app/install/lib -L/home/echocare/work/system/app/fftw-3.3.8/__install/lib -L/home/echocare/work/system/app/Ne10/build/modules -L/home/echocare/work/system/app/opencv/opencv/build_arm/install/lib -L/home/echocare/work/system/app/MotionWIthFFT/libxml2-2.7.2/lib -o "MotionWithFFT" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

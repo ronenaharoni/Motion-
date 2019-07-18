@@ -10,151 +10,180 @@
 #include "test.h"
 #include "seatest.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "BgXmlParser.h"
 
 struct timeval tpStart , tpStop ;
 struct timeval tp ;
 float f1;
 int i;
 
-int main( void ){
-	//	FILE *MscanFile = fopen("Mscan_withoutMF202.csv", "r");
 
-	SysParams_Struct SysParams;
+SysParams_Struct SysParams;
+Tree_Struct Tree[8];
+Tree_Struct* All_Trees[8]={&Tree[0],&Tree[1],&Tree[2],&Tree[3],&Tree[4],&Tree[5],&Tree[6],&Tree[7]};
+RF_Struct RF_Model;
+SVM_Struct SVM_Model;
+BgRadarParams bgParams;
+MotionXML_Params MotionParamsFromXML;
+int main( void ){//init Motion
 
-	SysParams.Rmin=1;//need to change this from the configuration XML!!!!
-	SysParams.Ring=2.62572418212891; //the ring width in meters; FOR DEMO ONLY maybe 2.5??? why 2.6
-	SysParams.Rmax=3.5; //need to change this from the configuration XML!!!!
+	//Load configuration from XML//
+	char  Filename_ECHO_Configurations[]= "/home/debian/XML_Configurations/ECHO_Configurations.xml";
+	parseDoc(Filename_ECHO_Configurations ,&MotionParamsFromXML);
 
-	SysParams.FirstTimeMotion=1;//1 if it's the first 2 frames
-	SysParams.Nbins=288;
-	SysParams.Fs=250;
-	SysParams.Nscans=400; // 400 for 1.6 sec record, 800 in the single 3.2 sec record
-	SysParams.NumOfClasses=4;
-	SysParams.RangeWide=120;
-	SysParams.winLength=30;
-	SysParams.N_Overlap=25;
-	SysParams.TimeShift=SysParams.winLength-SysParams.N_Overlap;//=5
-	SysParams.Fbins=100;
-	SysParams.noiseFreqBins=4;
-	SysParams.Fmin_bin=2;
-	SysParams.MinFreqPlusMinus=2.5;//in Hz
-	SysParams.MinFreqReal = 2.512562814070352; //Fmin in Hz
-	SysParams.minEventDuration=30;
-	SysParams.DFTLengthForPSD=floor(SysParams.Nscans/2)+1;
-	SysParams.noiseThresh=5;
-	SysParams.DFTLengthForSpectrogram=2*SysParams.Fbins-1;//=199
-	SysParams.GapLength=14;
-	SysParams.SpectrogramFreqBins=SysParams.DFTLengthForSpectrogram/2+1;//=100
-	SysParams.SpectrogramTimeBinsSingleMotion = floor((SysParams.Nscans-SysParams.N_Overlap)/(SysParams.winLength - SysParams.N_Overlap)); // total time bins of the spectrogram=155
-	SysParams.SpectrogramTimeBinsTwoMotions=(2*SysParams.SpectrogramTimeBinsSingleMotion+SysParams.GapLength);//=2*75+14=164
-	SysParams.SpectrogramTimeBinsThreeMotions=(3*SysParams.SpectrogramTimeBinsSingleMotion+2*SysParams.GapLength);//=3*75+2*14=253
-	SysParams.SpectrogramFreqBinsHilbert=2*SysParams.Fbins;//=200
-	SysParams.DFTLengthForSpectrogramHilbert=2*SysParams.Fbins;//=200
-	SysParams.MedianValue=20;//for MedianFilter
-	SysParams.AvgValue=5;//for AvgFilter
-	SysParams.topMaxFreq=5;
-	SysParams.truncate=1;// Computes medians of smaller segments as it reaches the signal edges in Pxx2 (regular) Spectrogram
-	SysParams.truncateHilbert=1;// Computes medians of smaller segments as it reaches the signal edges in Hilbert Spectrogram
+	SysParams.Motion.Nbins=MotionParamsFromXML.Nbins;
+	SysParams.Motion.Nscans=MotionParamsFromXML.Nscans; // 400 for 1.6 sec record, 800 in the single 3.2 sec record
+	SysParams.Motion.Fs=MotionParamsFromXML.Fs;
+	SysParams.Motion.RF_NumOfClasses=MotionParamsFromXML.RF_NumOfClasses;
+	SysParams.Motion.SpectrogramRangeWidth=MotionParamsFromXML.SpectrogramRangeWidth;
+	SysParams.Motion.SpectrogramWinLength=MotionParamsFromXML.SpectrogramWinLength;
+	SysParams.Motion.SpectrogramN_Overlap=MotionParamsFromXML.SpectrogramN_Overlap;
+	SysParams.Motion.SpectrogramNoiseFreqBins=MotionParamsFromXML.SpectrogramNoiseFreqBins;
+	SysParams.Motion.FminBin=MotionParamsFromXML.FminBin;
+	SysParams.Motion.Fbins=MotionParamsFromXML.Fbins;
+	SysParams.Motion.TopMaxFreq=MotionParamsFromXML.TopMaxFreq;
+	SysParams.Motion.NoiseThresh=MotionParamsFromXML.NoiseThresh;
+	SysParams.Motion.MinFreqPlusMinus=MotionParamsFromXML.MinFreqPlusMinus;//in Hz
+	SysParams.Motion.MinFreqReal = MotionParamsFromXML.MinFreqReal; //Fmin in Hz
+	SysParams.Motion.MinEventDuration=MotionParamsFromXML.MinEventDuration;
+	SysParams.Motion.DFTLengthForPSD=floor(SysParams.Motion.Nscans/2)+1;
+	SysParams.Motion.DFTLengthForSpectrogram=2*SysParams.Motion.Fbins-1;//=199
+	SysParams.Motion.GapLength=MotionParamsFromXML.GapLength;
+	SysParams.Motion.DFTLengthForSpectrogramHilbert=2*SysParams.Motion.Fbins;//=200
+	SysParams.Motion.MedianValue=MotionParamsFromXML.MedianValue;//for MedianFilter
+	SysParams.Motion.AvgValue=MotionParamsFromXML.AvgValue;//for AvgFilter
+	SysParams.Motion.TruncateReal=MotionParamsFromXML.TruncateReal;// Computes medians of smaller segments as it reaches the signal edges in Pxx2 (regular) Spectrogram
+	SysParams.Motion.TruncateHilbert=MotionParamsFromXML.TruncateHilbert;// Computes medians of smaller segments as it reaches the signal edges in Hilbert Spectrogram
+	SysParams.Motion.SpectrogramTimeShift=SysParams.Motion.SpectrogramWinLength-SysParams.Motion.SpectrogramN_Overlap;//=5
+	SysParams.Motion.NumSamplesForDerivativeEstimation=MotionParamsFromXML.NumSamplesForDerivativeEstimation;
 
-	//Hamming window coefficients
-	SysParams.Hamming[0]=0.08; SysParams.Hamming[1]=0.0907545443733602; SysParams.Hamming[2]=0.122515306951360;
-	SysParams.Hamming[3]=0.173797189775404; SysParams.Hamming[4]=0.242202309000359; SysParams.Hamming[5]=0.324532117278097;
-	SysParams.Hamming[6]=0.416936964276558;SysParams.Hamming[7]=0.515096102050708; SysParams.Hamming[8]=0.614419718414272;
-	SysParams.Hamming[9]=0.710263551456361; SysParams.Hamming[10]=0.798146050066696;SysParams.Hamming[11]=0.873957926284640;
-	SysParams.Hamming[12]=0.934154301037091; SysParams.Hamming[13]=0.975920458744089; SysParams.Hamming[14]=0.997303460291006;
-	SysParams.Hamming[15]=SysParams.Hamming[14]; SysParams.Hamming[16]=SysParams.Hamming[13]; SysParams.Hamming[17]=SysParams.Hamming[12]; SysParams.Hamming[18]=SysParams.Hamming[11];
-	SysParams.Hamming[19]=SysParams.Hamming[10]; SysParams.Hamming[20]=SysParams.Hamming[9]; SysParams.Hamming[21]=SysParams.Hamming[8]; SysParams.Hamming[22]=SysParams.Hamming[7];
-	SysParams.Hamming[23]=SysParams.Hamming[6]; SysParams.Hamming[24]=SysParams.Hamming[5]; SysParams.Hamming[25]=SysParams.Hamming[4]; SysParams.Hamming[26]=SysParams.Hamming[3];
-	SysParams.Hamming[27]=SysParams.Hamming[2]; SysParams.Hamming[28]=SysParams.Hamming[1]; SysParams.Hamming[29]=SysParams.Hamming[0];
-	SysParams.A12_Inverse[0][0]=5.925925925925995e-04;SysParams.A12_Inverse[0][1]=-5.925925925925996e-04;SysParams.A12_Inverse[0][2]=0.004444444444445;SysParams.A12_Inverse[0][3]=0.004444444444444;
-	SysParams.A12_Inverse[1][0]=-0.146666666666668;SysParams.A12_Inverse[1][1]=0.146666666666668;SysParams.A12_Inverse[1][2]=-1.133333333333347;SysParams.A12_Inverse[1][3]=-1.066666666666678;
-	SysParams.A12_Inverse[2][0]=12.0000000000001;SysParams.A12_Inverse[2][1]=-12.0000000000001;SysParams.A12_Inverse[2][2]=96.0000000000011;SysParams.A12_Inverse[2][3]=85.0000000000010;
-	SysParams.A12_Inverse[3][0]=-324.000000000004;SysParams.A12_Inverse[3][1]=325.000000000004;SysParams.A12_Inverse[3][2]=-2.700000000000030e+03;SysParams.A12_Inverse[3][3]=-2.250000000000026e+03;
-	SysParams.NumSamplesForDerivativeEstimation=5;
+	SysParams.Motion.SpectrogramFreqBins=SysParams.Motion.DFTLengthForSpectrogram/2+1;//=100
+	SysParams.Motion.SpectrogramTimeBinsSingleMotion = floor((SysParams.Motion.Nscans-SysParams.Motion.SpectrogramN_Overlap)/(SysParams.Motion.SpectrogramWinLength - SysParams.Motion.SpectrogramN_Overlap)); // total time bins of the spectrogram=155
+	SysParams.Motion.SpectrogramTimeBinsTwoMotions=(2*SysParams.Motion.SpectrogramTimeBinsSingleMotion+SysParams.Motion.GapLength);//=2*75+14=164
+	SysParams.Motion.SpectrogramTimeBinsThreeMotions=(3*SysParams.Motion.SpectrogramTimeBinsSingleMotion+2*SysParams.Motion.GapLength);//=3*75+2*14=253
+	SysParams.Motion.SpectrogramFreqBinsHilbert=2*SysParams.Motion.Fbins;//=200
+	SysParams.Motion.Hamming[0]=0.08; SysParams.Motion.Hamming[1]=0.0907545443733602; SysParams.Motion.Hamming[2]=0.122515306951360;
+	SysParams.Motion.Hamming[3]=0.173797189775404; SysParams.Motion.Hamming[4]=0.242202309000359; SysParams.Motion.Hamming[5]=0.324532117278097;
+	SysParams.Motion.Hamming[6]=0.416936964276558;SysParams.Motion.Hamming[7]=0.515096102050708; SysParams.Motion.Hamming[8]=0.614419718414272;
+	SysParams.Motion.Hamming[9]=0.710263551456361; SysParams.Motion.Hamming[10]=0.798146050066696;SysParams.Motion.Hamming[11]=0.873957926284640;
+	SysParams.Motion.Hamming[12]=0.934154301037091; SysParams.Motion.Hamming[13]=0.975920458744089; SysParams.Motion.Hamming[14]=0.997303460291006;
+	SysParams.Motion.Hamming[15]=SysParams.Motion.Hamming[14]; SysParams.Motion.Hamming[16]=SysParams.Motion.Hamming[13]; SysParams.Motion.Hamming[17]=SysParams.Motion.Hamming[12]; SysParams.Motion.Hamming[18]=SysParams.Motion.Hamming[11];
+	SysParams.Motion.Hamming[19]=SysParams.Motion.Hamming[10]; SysParams.Motion.Hamming[20]=SysParams.Motion.Hamming[9]; SysParams.Motion.Hamming[21]=SysParams.Motion.Hamming[8]; SysParams.Motion.Hamming[22]=SysParams.Motion.Hamming[7];
+	SysParams.Motion.Hamming[23]=SysParams.Motion.Hamming[6]; SysParams.Motion.Hamming[24]=SysParams.Motion.Hamming[5]; SysParams.Motion.Hamming[25]=SysParams.Motion.Hamming[4]; SysParams.Motion.Hamming[26]=SysParams.Motion.Hamming[3];
+	SysParams.Motion.Hamming[27]=SysParams.Motion.Hamming[2]; SysParams.Motion.Hamming[28]=SysParams.Motion.Hamming[1]; SysParams.Motion.Hamming[29]=SysParams.Motion.Hamming[0];
+	SysParams.Motion.A12_Inverse[0][0]=5.925925925925995e-04;SysParams.Motion.A12_Inverse[0][1]=-5.925925925925996e-04;SysParams.Motion.A12_Inverse[0][2]=0.004444444444445;SysParams.Motion.A12_Inverse[0][3]=0.004444444444444;
+	SysParams.Motion.A12_Inverse[1][0]=-0.146666666666668;SysParams.Motion.A12_Inverse[1][1]=0.146666666666668;SysParams.Motion.A12_Inverse[1][2]=-1.133333333333347;SysParams.Motion.A12_Inverse[1][3]=-1.066666666666678;
+	SysParams.Motion.A12_Inverse[2][0]=12.0000000000001;SysParams.Motion.A12_Inverse[2][1]=-12.0000000000001;SysParams.Motion.A12_Inverse[2][2]=96.0000000000011;SysParams.Motion.A12_Inverse[2][3]=85.0000000000010;
+	SysParams.Motion.A12_Inverse[3][0]=-324.000000000004;SysParams.Motion.A12_Inverse[3][1]=325.000000000004;SysParams.Motion.A12_Inverse[3][2]=-2.700000000000030e+03;SysParams.Motion.A12_Inverse[3][3]=-2.250000000000026e+03;
+
+
+	//////Global Parameters/////
+
+	bgParams.Rmin=1;//need to change this from the configuration XML!!!!
+	bgParams.Rmax=3.5; //need to change this from the configuration XML!!!!
+
+	SysParams.Motion.RealRingSizeForMotionTracking=2.62572418212891; //the ring width in meters; FOR DEMO ONLY maybe 2.5??? why 2.6
+
+	bgParams.Rstart_m=2.231486865000000;//for demo only!!! it will be the current Rstart
 
 	//create Rbin_m
-	SysParams.Rstart_corrected=2.231486865000000;//for demo only!!! it will be the current Rstart
-	SysParams.Rbin_m=(float *)malloc(SysParams.Nbins * sizeof(float));
-	float delta_R=(SysParams.Ring)/((float)SysParams.Nbins-1);//the delta of the bins inside the ring(=Rstop-Rstart)=2.5m
+	SysParams.Motion.Rbin_m=(float *)malloc(SysParams.Motion.Nbins * sizeof(float));
+	float delta_R=(SysParams.Motion.RealRingSizeForMotionTracking)/((float)SysParams.Motion.Nbins-1);//the delta of the bins inside the ring(=Rstop-Rstart)=2.5m
 
-	for(i=0;i<SysParams.Nbins;i++){
-		SysParams.Rbin_m[i]=SysParams.Rstart_corrected+delta_R*i;
+	for(i=0;i<SysParams.Motion.Nbins;i++){
+		SysParams.Motion.Rbin_m[i]=bgParams.Rstart_m+delta_R*i;
 	}
 
+	int y_hat_M;
+		float MotionDistribution[SysParams.Motion.RF_NumOfClasses]; //=4
+
+	///////Classifiers Preparation////////
+	int NumOfTrees=8,NumOfFeatures=6;//RandomForrest
+	RF_Params_Import(NumOfTrees, NumOfFeatures,All_Trees,&RF_Model);
+	SVM_Params_Import(&SVM_Model);
+
+	//////Create FFT Plans//////
+	CreateFFTPlans(&SysParams);
+
+	////////MotionStruct0 Preparation////////
 	Motion_Struct MotionStruct0;
 
 	Edge2_Struct Edge2_0;
 	Edge2_Struct Edge2_Plus_0;
 	Edge2_Struct Edge2_Minus_0;
+	SysParams.Motion.SpectrogramTimeBins=SysParams.Motion.SpectrogramTimeBinsSingleMotion;
 
-	int j;
-	int NumOfTrees=8,NumOfFeatures=7;
-	float Mscan_flat[SysParams.Nscans*SysParams.Nbins];
-	float* Mscan0[SysParams.Nscans],* Mscan1[SysParams.Nscans],*Mscan2[SysParams.Nscans],* Mscan3[SysParams.Nscans];//,*Mscan_old[SysParams.Nscans];
-	for (i=0; i<SysParams.Nscans; i++){
-		Mscan0[i] = (float *)malloc(SysParams.Nbins * sizeof(float));
-		Mscan1[i] = (float *)malloc(SysParams.Nbins * sizeof(float));
-		Mscan2[i] = (float *)malloc(SysParams.Nbins * sizeof(float));
-		Mscan3[i] = (float *)malloc(SysParams.Nbins * sizeof(float));
-
-	}
-	Tree_Struct Tree[8];
-	Tree_Struct* All_Trees[8]={&Tree[0],&Tree[1],&Tree[2],&Tree[3],&Tree[4],&Tree[5],&Tree[6],&Tree[7]};
-	RF_Struct RF_Model;
-	SVM_Struct SVM_Model;
-
-	/////MotioStruct0 Preparation/////
-	SysParams.SpectrogramTimeBins=SysParams.SpectrogramTimeBinsSingleMotion;
-
-
-	if(SysParams.truncate==1){// Computes medians of smaller segments as it reaches the signal edges. no zeropadding at the end and begining
-		Edge2_0.Peak=(float *)malloc((SysParams.SpectrogramTimeBins) * sizeof(float));
-		Edge2_0.Peak_Filtered=(float *)malloc((SysParams.SpectrogramTimeBins) * sizeof(float));
-		//		memset(Edge2_0.Peak,0,(SysParams.SpectrogramTimeBins+SysParams.MedianValue/2)*sizeof(float));//set 0 the first MedianValue/2 for the inital conditions
+	if(SysParams.Motion.TruncateReal==1){// Computes medians of smaller segments as it reaches the signal edges. no zeropadding at the end and begining
+		Edge2_0.Peak=(float *)malloc((SysParams.Motion.SpectrogramTimeBins) * sizeof(float));
+		Edge2_0.Peak_Filtered=(float *)malloc((SysParams.Motion.SpectrogramTimeBins) * sizeof(float));
 	}
 	else{//Considers the signal to be zero beyond the endpoints.
-		Edge2_0.Peak_Filtered=(float *)malloc((SysParams.SpectrogramTimeBins+SysParams.MedianValue-1) * sizeof(float));
+		Edge2_0.Peak_Filtered=(float *)malloc((SysParams.Motion.SpectrogramTimeBins+SysParams.Motion.MedianValue-1) * sizeof(float));
 	}
 
-	Edge2_Plus_0.FiftyPrecent_Filtered=(float *)malloc(SysParams.SpectrogramTimeBins * sizeof(float));
-	Edge2_Plus_0.Fmax=(float *)malloc(SysParams.SpectrogramTimeBins * sizeof(float));
-	Edge2_Plus_0.PrevLastFiftyPrecent=(float *)malloc((SysParams.AvgValue-1) * sizeof(float));
-	Edge2_Plus_0.SumEnergy_Post=(float *)malloc(SysParams.SpectrogramTimeBins * sizeof(float));
-	Edge2_Plus_0.T1_t=(float *)malloc(SysParams.SpectrogramTimeBins * sizeof(float));
+	Edge2_Plus_0.FiftyPrecent_Filtered=(float *)malloc(SysParams.Motion.SpectrogramTimeBins * sizeof(float));
+	Edge2_Plus_0.Fmax=(float *)malloc(SysParams.Motion.SpectrogramTimeBins * sizeof(float));
+	Edge2_Plus_0.PrevLastFiftyPrecent=(float *)malloc((SysParams.Motion.AvgValue-1) * sizeof(float));
+	Edge2_Plus_0.SumEnergy_Post=(float *)malloc(SysParams.Motion.SpectrogramTimeBins * sizeof(float));
+	Edge2_Plus_0.T1_t=(float *)malloc(SysParams.Motion.SpectrogramTimeBins * sizeof(float));
 
-	if(SysParams.truncateHilbert==1){// Computes medians of smaller segments as it reaches the signal edges. no zeropadding at the end and beginning
-		Edge2_Plus_0.Peak_Filtered=(float *)malloc((SysParams.SpectrogramTimeBins) * sizeof(float));
-		//		memset(Edge2_Plus_0.Peak,0,(SysParams.SpectrogramTimeBins+SysParams.MedianValue/2)*sizeof(float));//set 0 the first MedianValue/2 for the inital conditions
-	}
-	else{//Considers the signal to be zero beyond the endpoints.
-		Edge2_Plus_0.Peak_Filtered=(float *)malloc((SysParams.SpectrogramTimeBins+SysParams.MedianValue-1) * sizeof(float));
-	}
-
-	Edge2_Minus_0.FiftyPrecent_Filtered=(float *)malloc(SysParams.SpectrogramTimeBins * sizeof(float));
-	Edge2_Minus_0.Fmax=(float *)malloc(SysParams.SpectrogramTimeBins * sizeof(float));
-	Edge2_Minus_0.PrevLastFiftyPrecent=(float *)malloc((SysParams.AvgValue-1) * sizeof(float));
-	Edge2_Minus_0.SumEnergy_Post=(float *)malloc(SysParams.SpectrogramTimeBins * sizeof(float));
-	Edge2_Minus_0.T1_t=(float *)malloc(SysParams.SpectrogramTimeBins * sizeof(float));
-
-	if(SysParams.truncateHilbert==1){// Computes medians of smaller segments as it reaches the signal edges. no zeropadding at the end and beginning
-		Edge2_Minus_0.Peak_Filtered=(float *)malloc((SysParams.SpectrogramTimeBins) * sizeof(float));
-		//		memset(Edge2_Minus_0.Peak,0,(SysParams.SpectrogramTimeBins+SysParams.MedianValue/2)*sizeof(float));//set 0 the first MedianValue/2 for the initial conditions
+	if(SysParams.Motion.TruncateHilbert==1){// Computes medians of smaller segments as it reaches the signal edges. no zeropadding at the end and beginning
+		Edge2_Plus_0.Peak_Filtered=(float *)malloc((SysParams.Motion.SpectrogramTimeBins) * sizeof(float));
 	}
 	else{//Considers the signal to be zero beyond the endpoints.
-		Edge2_Minus_0.Peak_Filtered=(float *)malloc((SysParams.SpectrogramTimeBins+SysParams.MedianValue-1) * sizeof(float));
+		Edge2_Plus_0.Peak_Filtered=(float *)malloc((SysParams.Motion.SpectrogramTimeBins+SysParams.Motion.MedianValue-1) * sizeof(float));
 	}
 
+	Edge2_Minus_0.FiftyPrecent_Filtered=(float *)malloc(SysParams.Motion.SpectrogramTimeBins * sizeof(float));
+	Edge2_Minus_0.Fmax=(float *)malloc(SysParams.Motion.SpectrogramTimeBins * sizeof(float));
+	Edge2_Minus_0.PrevLastFiftyPrecent=(float *)malloc((SysParams.Motion.AvgValue-1) * sizeof(float));
+	Edge2_Minus_0.SumEnergy_Post=(float *)malloc(SysParams.Motion.SpectrogramTimeBins * sizeof(float));
+	Edge2_Minus_0.T1_t=(float *)malloc(SysParams.Motion.SpectrogramTimeBins * sizeof(float));
+
+	if(SysParams.Motion.TruncateHilbert==1){// Computes medians of smaller segments as it reaches the signal edges. no zeropadding at the end and beginning
+		Edge2_Minus_0.Peak_Filtered=(float *)malloc((SysParams.Motion.SpectrogramTimeBins) * sizeof(float));
+	}
+	else{//Considers the signal to be zero beyond the endpoints.
+		Edge2_Minus_0.Peak_Filtered=(float *)malloc((SysParams.Motion.SpectrogramTimeBins+SysParams.Motion.MedianValue-1) * sizeof(float));
+	}
 
 	MotionStruct0.Edge2=&Edge2_0;
 	MotionStruct0.Edge2_Plus=&Edge2_Plus_0;
 	MotionStruct0.Edge2_Minus=&Edge2_Minus_0;
 
 
-	CreateFFTPlans(&SysParams);
-	RF_Params_Import(NumOfTrees, NumOfFeatures,All_Trees,&RF_Model);
-	SVM_Params_Import(&SVM_Model);
 
-	////////load records files:
+	///////////////END OF INIT//////////////////////
+
+
+
+	////////GET MSCAN0 AND MSCAN1////////
+
+	int j;
+	float* Mscan_PostProcess0[SysParams.Motion.Nscans];
+	float* Mscan_PostProcess1[SysParams.Motion.Nscans];
+
+	for (i = 0; i < SysParams.Motion.Nscans; i++)
+		Mscan_PostProcess0[i] = (float *) malloc(
+				SysParams.Motion.Nbins * sizeof(float));
+	for (i = 0; i < SysParams.Motion.Nscans; i++)
+		Mscan_PostProcess1[i] = (float *) malloc(
+				SysParams.Motion.Nbins * sizeof(float));
+
+	float Mscan_flat[SysParams.Motion.Nscans*SysParams.Motion.Nbins];
+	float* Mscan0[SysParams.Motion.Nscans],* Mscan1[SysParams.Motion.Nscans],*Mscan2[SysParams.Motion.Nscans],* Mscan3[SysParams.Motion.Nscans];//,*Mscan_old[SysParams.Motion.Nscans];
+	for (i=0; i<SysParams.Motion.Nscans; i++){
+		Mscan0[i] = (float *)malloc(SysParams.Motion.Nbins * sizeof(float));
+		Mscan1[i] = (float *)malloc(SysParams.Motion.Nbins * sizeof(float));
+		Mscan2[i] = (float *)malloc(SysParams.Motion.Nbins * sizeof(float));
+		Mscan3[i] = (float *)malloc(SysParams.Motion.Nbins * sizeof(float));
+
+	}
+
 
 	for(SysParams.RecordNumber=700;SysParams.RecordNumber<701;SysParams.RecordNumber++){
 		printf("record number %d\n",SysParams.RecordNumber);
@@ -170,90 +199,114 @@ int main( void ){
 		sprintf(Filename_Mscan3, "/home/debian/Records/Mscan_withoutMF%d_3.csv" , SysParams.RecordNumber);
 		FILE *MscanFile3=fopen(Filename_Mscan3, "r");
 
+		read_data_from_file(MscanFile1,SysParams.Motion.Nscans,SysParams.Motion.Nbins,Mscan_flat);//get the MSCAN in flat form
 
-
-		read_data_from_file(MscanFile1,SysParams.Nscans,SysParams.Nbins,Mscan_flat);//get the MSCAN in flat form
-
-		for ( i=0;i<SysParams.Nscans;i++)
+		for ( i=0;i<SysParams.Motion.Nscans;i++)
 		{//get the  MSCAN from flat
-			for ( j=0;j<SysParams.Nbins;j++)
+			for ( j=0;j<SysParams.Motion.Nbins;j++)
 			{
-				Mscan0[i][j]=Mscan_flat[i*SysParams.Nbins+j];
+				Mscan0[i][j]=Mscan_flat[i*SysParams.Motion.Nbins+j];
 			}
 		}
 
-		read_data_from_file(MscanFile1,SysParams.Nscans,SysParams.Nbins,Mscan_flat);//get the MSCAN in flat form
-		for ( i=0;i<SysParams.Nscans;i++)
+		read_data_from_file(MscanFile1,SysParams.Motion.Nscans,SysParams.Motion.Nbins,Mscan_flat);//get the MSCAN in flat form
+		for ( i=0;i<SysParams.Motion.Nscans;i++)
 		{//get the  MSCAN from flat
-			for ( j=0;j<SysParams.Nbins;j++)
+			for ( j=0;j<SysParams.Motion.Nbins;j++)
 			{
-				Mscan1[i][j]=Mscan_flat[i*SysParams.Nbins+j];
+				Mscan1[i][j]=Mscan_flat[i*SysParams.Motion.Nbins+j];
 			}
 		}
+
+		read_data_from_file(MscanFile2,SysParams.Motion.Nscans,SysParams.Motion.Nbins,Mscan_flat);//get the MSCAN in flat form
+		for ( i=0;i<SysParams.Motion.Nscans;i++)
+		{//get the  MSCAN from flat
+			for ( j=0;j<SysParams.Motion.Nbins;j++)
+			{
+				Mscan2[i][j]=Mscan_flat[i*SysParams.Motion.Nbins+j];
+			}
+		}
+
+
+		read_data_from_file(MscanFile3,SysParams.Motion.Nscans,SysParams.Motion.Nbins,Mscan_flat);//get the MSCAN in flat form
+		for ( i=0;i<SysParams.Motion.Nscans;i++)
+		{//get the  MSCAN from flat
+			for ( j=0;j<SysParams.Motion.Nbins;j++)
+			{
+				Mscan3[i][j]=Mscan_flat[i*SysParams.Motion.Nbins+j];
+			}
+		}
+
 
 
 
 		gettimeofday(&tpStart,0);
+		//		SysParams.Motion.FirstMscan=1;
 
 
-		MotionHandler(Mscan0,Mscan1,&SysParams,All_Trees,&SVM_Model,&RF_Model,&MotionStruct0);
-		gettimeofday(&tpStop,0); f1 = ( (float)( tpStop.tv_sec-tpStart.tv_sec)+ (float)(tpStop.tv_usec)/1000000 ) -  ((float)(tpStart.tv_usec)/1000000) ;
-		printf (" %f sec\n", f1 );
+		memset(MotionDistribution, 0, SysParams.Motion.RF_NumOfClasses * sizeof(float));	//initialize with zeros
 
 
-		for (i=0; i<SysParams.Nscans; i++){
-			free(Mscan0[i]);
-			free(Mscan1[i]);
+		SysParams.Motion.FirstTimeMotion=1;//1 if it's the first 2 frames
+
+		MotionPreprocess(Mscan0,Mscan_PostProcess0,&SysParams);
+		MotionTracking(Mscan_PostProcess0, &SysParams,&bgParams);//Send Mscan0 to tracking//
+
+
+		MotionPreprocess(Mscan1,Mscan_PostProcess1,&SysParams);
+		MotionTracking(Mscan_PostProcess1, &SysParams,&bgParams);//Send Mscan1 to tracking//
+
+		MotionAnalyzer(Mscan0, Mscan1, Mscan_PostProcess0,Mscan_PostProcess1,&SysParams,All_Trees,&SVM_Model,&RF_Model,&MotionStruct0,&bgParams,&y_hat_M,MotionDistribution);
+
+
+		gettimeofday(&tpStop,0); f1 = ( (float)( tpStop.tv_sec-tpStart.tv_sec)+ (float)(tpStop.tv_usec)/1000000 ) -  ((float)(tpStart.tv_usec)/1000000) ;printf (" %f sec\n", f1 );
+
+
+
+		MotionPreprocess(Mscan2,Mscan_PostProcess0,&SysParams);
+		MotionTracking(Mscan_PostProcess0, &SysParams,&bgParams);//Send Mscan0 to tracking//
+
+
+		MotionPreprocess(Mscan3,Mscan_PostProcess1,&SysParams);
+		MotionTracking(Mscan_PostProcess1, &SysParams,&bgParams);//Send Mscan1 to tracking//
+
+
+		SysParams.Motion.FirstTimeMotion=0;////after 1st time
+
+		memset(MotionDistribution, 0, SysParams.Motion.RF_NumOfClasses * sizeof(float));	//initialize with zeros
+
+		MotionAnalyzer(Mscan2, Mscan3, Mscan_PostProcess0,Mscan_PostProcess1,&SysParams,All_Trees,&SVM_Model,&RF_Model,&MotionStruct0,&bgParams,&y_hat_M,MotionDistribution);
+
+		for(i=0;i<4;i++){
+
+			printf("%f\n",MotionDistribution[i]);
 		}
-		////////////////////
 
 
-		SysParams.FirstTimeMotion=0;//now will be 3 motions
+		//		MotionAlgorithm(Mscan2,Mscan3,&SysParams,All_Trees,&SVM_Model,&RF_Model,&MotionStruct0,&bgParams);
 
 
-		read_data_from_file(MscanFile2,SysParams.Nscans,SysParams.Nbins,Mscan_flat);//get the MSCAN in flat form
-		for ( i=0;i<SysParams.Nscans;i++)
-		{//get the  MSCAN from flat
-			for ( j=0;j<SysParams.Nbins;j++)
-			{
-				Mscan2[i][j]=Mscan_flat[i*SysParams.Nbins+j];
-			}
-		}
+		//free memory
 
 
-		read_data_from_file(MscanFile3,SysParams.Nscans,SysParams.Nbins,Mscan_flat);//get the MSCAN in flat form
-		for ( i=0;i<SysParams.Nscans;i++)
-		{//get the  MSCAN from flat
-			for ( j=0;j<SysParams.Nbins;j++)
-			{
-				Mscan3[i][j]=Mscan_flat[i*SysParams.Nbins+j];
-			}
-		}
-		gettimeofday(&tpStart,0);
-
-		MotionHandler(Mscan2,Mscan3,&SysParams,All_Trees,&SVM_Model,&RF_Model,&MotionStruct0);
-
-		gettimeofday(&tpStop,0); f1 = ( (float)( tpStop.tv_sec-tpStart.tv_sec)+ (float)(tpStop.tv_usec)/1000000 ) -  ((float)(tpStart.tv_usec)/1000000) ;
-		printf (" %f sec\n", f1 );
-
-		for (i=0; i<SysParams.Nscans; i++){
-				free(Mscan2[i]);
-				free(Mscan3[i]);
-			}
 
 	}
 
+	for (i=0; i<SysParams.Motion.Nscans; i++){
+				free(Mscan0[i]);
+				free(Mscan1[i]);
+				free(Mscan2[i]);
+				free(Mscan3[i]);
+			}
+	fftwf_destroy_plan(SysParams.Motion.FFT_Hilbert);
+	fftwf_destroy_plan(SysParams.Motion.IFFT_Hilbert);
+	fftwf_destroy_plan(SysParams.Motion.FFT_HilbertSpectrogram);
+	fftwf_destroy_plan(SysParams.Motion.FFT_ABS);
+	ne10_fft_destroy_r2c_float32(SysParams.Motion.FFT_Feature42);
 
 
-	fftwf_destroy_plan(SysParams.FFT_Hilbert);
-	fftwf_destroy_plan(SysParams.IFFT_Hilbert);
-	fftwf_destroy_plan(SysParams.FFT_HilbertSpectrogram);
-	fftwf_destroy_plan(SysParams.FFT_ABS);
-	ne10_fft_destroy_r2c_float32(SysParams.FFT_Feature42);
-
-
-	FreeMemoryEdeges(&Edge2_0,
-			&Edge2_Plus_0,&Edge2_Minus_0);
+	//	FreeMemoryEdeges(&Edge2_0,
+	//			&Edge2_Plus_0,&Edge2_Minus_0);//think about it again
 
 	return 0;
 }
@@ -394,47 +447,44 @@ int SVM_Params_Import(SVM_Struct* SVM_Model){
 
 int CreateFFTPlans(SysParams_Struct *SysParams){
 
-	//	SysParams->MscanFFT=fftwf_malloc(SysParams->Nbins);
-	//	SysParams->MscanIFFT=fftwf_malloc(SysParams->Nbins);
-	//	SysParams->MscanIFFT[SysParams->Nbins];
 
 	int flags = 1;
-	float fftin_local_ptr_complex[SysParams->Nbins];
+	float fftin_local_ptr_complex[SysParams->Motion.Nbins];
 	memset(fftin_local_ptr_complex, 0, sizeof(fftin_local_ptr_complex));
-	SysParams->FFT_Hilbert = fftwf_plan_dft_r2c_1d(SysParams->Nbins,
-			fftin_local_ptr_complex, SysParams->MscanFFT, flags);
+	SysParams->Motion.FFT_Hilbert = fftwf_plan_dft_r2c_1d(SysParams->Motion.Nbins,
+			fftin_local_ptr_complex, SysParams->Motion.MscanFFT, flags);
 
-	SysParams->IFFT_Hilbert = fftwf_plan_dft_1d(SysParams->Nbins, SysParams->MscanFFT, SysParams->MscanIFFT,
+	SysParams->Motion.IFFT_Hilbert = fftwf_plan_dft_1d(SysParams->Motion.Nbins, SysParams->Motion.MscanFFT, SysParams->Motion.MscanIFFT,
 			FFTW_BACKWARD, FFTW_MEASURE);	//MAYBE ESTIMATEEEEE!!!!!
 
 
 
 
-	SysParams->FFT_HilbertSpectrogram = fftwf_plan_dft_r2c_1d(SysParams->Nbins,
-			fftin_local_ptr_complex, SysParams->MscanFFT, flags);
+	SysParams->Motion.FFT_HilbertSpectrogram = fftwf_plan_dft_r2c_1d(SysParams->Motion.Nbins,
+			fftin_local_ptr_complex, SysParams->Motion.MscanFFT, flags);
 
 
-	SysParams->SignalForFFT = (fftwf_complex*) fftwf_malloc( sizeof(fftwf_complex) * SysParams->SpectrogramFreqBinsHilbert);	//pay attention
+	SysParams->Motion.SignalForFFT = (fftwf_complex*) fftwf_malloc( sizeof(fftwf_complex) * SysParams->Motion.SpectrogramFreqBinsHilbert);	//pay attention
 
-	SysParams->SignalForFFTABS = (fftwf_complex*) fftwf_malloc( sizeof(fftwf_complex) * SysParams->Nscans);	//pay attention
-
-
-
-	SysParams->FFTResult = (fftwf_complex*) fftwf_malloc(
-			sizeof(fftwf_complex) * SysParams->SpectrogramFreqBinsHilbert);
+	SysParams->Motion.SignalForFFTABS = (fftwf_complex*) fftwf_malloc( sizeof(fftwf_complex) * SysParams->Motion.Nscans);	//pay attention
 
 
-	SysParams->FFTResultABS = (fftwf_complex*) fftwf_malloc(
-			sizeof(fftwf_complex) * (SysParams->Nscans));
 
-	SysParams->FFT_HilbertSpectrogram=fftwf_plan_dft_1d(SysParams->SpectrogramFreqBinsHilbert,
-			SysParams->SignalForFFT, SysParams->FFTResult, FFTW_FORWARD, FFTW_ESTIMATE);
+	SysParams->Motion.FFTResult = (fftwf_complex*) fftwf_malloc(
+			sizeof(fftwf_complex) * SysParams->Motion.SpectrogramFreqBinsHilbert);
 
-	SysParams->FFT_ABS= fftwf_plan_dft_1d(SysParams->Nscans ,
-			SysParams->SignalForFFTABS, SysParams->FFTResultABS, FFTW_FORWARD, FFTW_ESTIMATE);
+
+	SysParams->Motion.FFTResultABS = (fftwf_complex*) fftwf_malloc(
+			sizeof(fftwf_complex) * (SysParams->Motion.Nscans));
+
+	SysParams->Motion.FFT_HilbertSpectrogram=fftwf_plan_dft_1d(SysParams->Motion.SpectrogramFreqBinsHilbert,
+			SysParams->Motion.SignalForFFT, SysParams->Motion.FFTResult, FFTW_FORWARD, FFTW_ESTIMATE);
+
+	SysParams->Motion.FFT_ABS= fftwf_plan_dft_1d(SysParams->Motion.Nscans,
+			SysParams->Motion.SignalForFFTABS, SysParams->Motion.FFTResultABS, FFTW_FORWARD, FFTW_ESTIMATE);
 
 	// An FFT "configuration structure"
-	SysParams->FFT_Feature42 = ne10_fft_alloc_r2c_float32(256);
+	SysParams->Motion.FFT_Feature42 = ne10_fft_alloc_r2c_float32(256);
 
 	return 0;
 }
@@ -442,7 +492,7 @@ int CreateFFTPlans(SysParams_Struct *SysParams){
 
 int FreeMemoryEdeges(Edge2_Struct* Edge2_0,
 		Edge2_Struct* Edge2_Plus_0, Edge2_Struct* Edge2_Minus_0){
-free(Edge2_0->FiftyPrecent);
+	free(Edge2_0->FiftyPrecent);
 	free(Edge2_0->FiftyPrecent_Filtered);
 	free(Edge2_0->Fmax);
 	free(Edge2_0->PeakEnergy);
@@ -485,3 +535,7 @@ free(Edge2_0->FiftyPrecent);
 	free(Edge2_Minus_0->Peak_Filtered);
 	return 0;
 }
+
+#ifdef __cplusplus
+}
+#endif

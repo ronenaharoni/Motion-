@@ -19,9 +19,11 @@ C_SRCS += \
 ../unit_test_common.c 
 
 CPP_SRCS += \
+../BgXmlParser.cpp \
 ../opencv_tests.cpp 
 
 OBJS += \
+./BgXmlParser.o \
 ./MotionAlgorithm.o \
 ./MotionTracking.o \
 ./NE10_random.o \
@@ -53,21 +55,22 @@ C_DEPS += \
 ./unit_test_common.d 
 
 CPP_DEPS += \
+./BgXmlParser.d \
 ./opencv_tests.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
-%.o: ../%.c
-	@echo 'Building file: $<'
-	@echo 'Invoking: Cross GCC Compiler'
-	arm-linux-gnueabihf-gcc -I/home/echocare/work/system/app/opencv/opencv/build_arm/install/include/opencv4 -I/home/echocare/work/system/app/fftw-3.3.8/__install/include -I/home/echocare/work/system/app/Ne10/inc -I/home/echocare/work/system/app/install/include -I/home/echocare/work/system/app/opencv/opencv/build_arm/install/include/opencv4/opencv2 -O0 -g3 -Wall -c -fmessage-length=0  -D__ARM -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
-	@echo 'Finished building: $<'
-	@echo ' '
-
 %.o: ../%.cpp
 	@echo 'Building file: $<'
 	@echo 'Invoking: Cross G++ Compiler'
-	arm-linux-gnueabihf-g++ -I/home/echocare/work/system/app/opencv/opencv/build_arm/install/include/opencv4 -I/home/echocare/work/system/app/fftw-3.3.8/__install/include -I/home/echocare/work/system/app/opencv/opencv/build_arm/install/include/opencv4 -O0 -g3 -Wall -c -fmessage-length=0 -D__ARM -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	arm-linux-gnueabihf-g++ -I/home/echocare/work/system/app/opencv/opencv/build_arm/install/include/opencv4 -I/home/echocare/work/system/app/fftw-3.3.8/__install/include -I/home/echocare/work/system/app/MotionWIthFFT/libxml2-2.7.2/include -O0 -g3 -Wall -c -fmessage-length=0 -D__ARM -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	@echo 'Finished building: $<'
+	@echo ' '
+
+%.o: ../%.c
+	@echo 'Building file: $<'
+	@echo 'Invoking: Cross GCC Compiler'
+	arm-linux-gnueabihf-gcc -I/home/echocare/work/system/app/opencv/opencv/build_arm/install/include/opencv4 -I/home/echocare/work/system/app/fftw-3.3.8/__install/include -I/home/echocare/work/system/app/Ne10/inc -I/home/echocare/work/system/app/install/include -I/home/echocare/work/system/app/opencv/opencv/build_arm/install/include/opencv4/opencv2 -I/home/echocare/work/system/app/MotionWIthFFT/libxml2-2.7.2/include -O0 -g3 -Wall -c -fmessage-length=0  -D__ARM -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
