@@ -212,7 +212,9 @@ int MotionAnalyzer(float* Mscan1[],float* Mscan2[],float* Mscan_PostProcess1[],f
 		MotionDistribution[3] = 1;	//MotionDistribution=[0,0,0,1]
 	}
 
-	int SaveResults = 1;
+
+
+	int SaveResults = 0;
 	if (SaveResults == 1 && SysParams->Motion.FirstTimeMotion == 0) {
 
 		SaveToCsv(*y_hat_M, MotionDistribution, &FeatureSet, RF_Model,
